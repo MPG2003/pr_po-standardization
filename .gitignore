@@ -1,5 +1,4 @@
-*.csv 
-*.pkl 
+*.csv  
 __pycache__/ 
 dashboard/ 
 New folder/ 
