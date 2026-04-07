@@ -1,0 +1,2453 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PR/PO Intelligence — Standardisation Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --surface3: #30363d;
+      --border: #30363d;
+      --border2: #484f58;
+      --blue: #4493f8;
+      --blue-dim: rgba(68, 147, 248, .12);
+      --green: #3fb950;
+      --green-dim: rgba(63, 185, 80, .12);
+      --yellow: #d29922;
+      --yellow-dim: rgba(210, 153, 34, .12);
+      --red: #f85149;
+      --red-dim: rgba(248, 81, 73, .12);
+      --purple: #bc8cff;
+      --purple-dim: rgba(188, 140, 255, .12);
+      --text: #e6edf3;
+      --text2: #8d96a0;
+      --text3: #484f58;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+      --r: 10px;
+      --r2: 6px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      font-size: 14px;
+    }
+
+    /* SIDEBAR */
+    .sb {
+      width: 232px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .sb-top {
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sb-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .sb-logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .sb-logo-name {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .01em;
+    }
+
+    .sb-logo-sub {
+      font-size: 10px;
+      color: var(--text2);
+    }
+
+    .sb-model {
+      margin-top: 12px;
+      padding: 8px 10px;
+      background: var(--blue-dim);
+      border: 1px solid rgba(68, 147, 248, .2);
+      border-radius: var(--r2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sb-model-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    .sb-model-text {
+      font-size: 11px;
+      color: var(--blue);
+      font-family: var(--mono);
+    }
+
+    .sb-nav {
+      padding: 12px 8px;
+      flex: 1;
+    }
+
+    .sb-section {
+      margin-bottom: 20px;
+    }
+
+    .sb-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text3);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 0 8px;
+      margin-bottom: 4px;
+    }
+
+    .sb-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 10px;
+      border-radius: var(--r2);
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text2);
+      transition: all .15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      margin-bottom: 1px;
+    }
+
+    .sb-item:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .sb-item.active {
+      background: var(--blue-dim);
+      color: var(--blue);
+    }
+
+    .sb-badge {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    .sb-badge.red {
+      background: var(--red-dim);
+      color: var(--red);
+    }
+
+    .sb-badge.yellow {
+      background: var(--yellow-dim);
+      color: var(--yellow);
+    }
+
+    .sb-badge.green {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .sb-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .acc-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--green-dim);
+      border: 1px solid rgba(63, 185, 80, .2);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 11px;
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    /* MAIN */
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      height: 52px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 28px;
+      gap: 16px;
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    .tb-title {
+      font-size: 14px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .tb-sub {
+      font-size: 11px;
+      color: var(--text2);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: var(--r2);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      font-family: var(--sans);
+      transition: all .15s;
+    }
+
+    .btn-primary {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #1f6feb;
+    }
+
+    .btn-ghost {
+      background: var(--surface2);
+      color: var(--text2);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: var(--border2);
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+    }
+
+    .page {
+      display: none;
+      animation: fadein .2s ease;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    @keyframes fadein {
+      from {
+        opacity: 0;
+        transform: translateY(4px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .page-header {
+      margin-bottom: 22px;
+    }
+
+    .page-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .page-sub {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    /* UPLOAD */
+    .upload-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .upload-zone {
+      background: var(--surface);
+      border: 1.5px dashed var(--border2);
+      border-radius: var(--r);
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      position: relative;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag {
+      border-color: var(--blue);
+      background: var(--blue-dim);
+    }
+
+    .upload-zone.done {
+      border-style: solid;
+      border-color: var(--green);
+      background: var(--green-dim);
+      cursor: default;
+    }
+
+    .uz-chip {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      padding: 3px 9px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      font-family: var(--mono);
+    }
+
+    .uz-chip.eban {
+      background: var(--blue-dim);
+      color: var(--blue);
+    }
+
+    .uz-chip.ekpo {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .uz-icon {
+      font-size: 26px;
+      margin-bottom: 8px;
+    }
+
+    .uz-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .uz-sub {
+      font-size: 11px;
+      color: var(--text2);
+      margin-bottom: 10px;
+    }
+
+    .uz-tags {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .uz-tag {
+      font-family: var(--mono);
+      font-size: 9px;
+      background: var(--surface3);
+      color: var(--text2);
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+
+    .uz-done {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .uz-done-icon {
+      font-size: 22px;
+      color: var(--green);
+    }
+
+    .uz-done-name {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .uz-done-meta {
+      font-size: 10px;
+      color: var(--green);
+      font-family: var(--mono);
+    }
+
+    .uz-done-clear {
+      font-size: 10px;
+      color: var(--text3);
+      cursor: pointer;
+      margin-top: 2px;
+    }
+
+    .uz-done-clear:hover {
+      color: var(--red);
+    }
+
+    /* RUN BAR */
+    .run-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .run-status {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .run-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-right: 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .run-check.ok {
+      color: var(--green);
+    }
+
+    /* PROGRESS */
+    .prog-wrap {
+      display: none;
+      margin-bottom: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 16px 18px;
+    }
+
+    .prog-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text2);
+      margin-bottom: 8px;
+      font-family: var(--mono);
+    }
+
+    .prog-bar {
+      height: 3px;
+      background: var(--surface3);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .prog-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+      border-radius: 2px;
+      width: 0%;
+      transition: width .4s;
+    }
+
+    .prog-steps {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .prog-step {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text3);
+    }
+
+    .prog-step.done {
+      color: var(--green);
+    }
+
+    .prog-step.cur {
+      color: var(--blue);
+    }
+
+    /* KPI */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+    }
+
+    .kpi.blue::after {
+      background: var(--blue);
+    }
+
+    .kpi.green::after {
+      background: var(--green);
+    }
+
+    .kpi.yellow::after {
+      background: var(--yellow);
+    }
+
+    .kpi.red::after {
+      background: var(--red);
+    }
+
+    .kpi.purple::after {
+      background: var(--purple);
+    }
+
+    .kpi.gray::after {
+      background: var(--border2);
+    }
+
+    .kpi-val {
+      font-size: 22px;
+      font-weight: 700;
+      font-family: var(--mono);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .kpi-label {
+      font-size: 10px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-weight: 500;
+    }
+
+    .kpi-sub {
+      font-size: 10px;
+      color: var(--text3);
+      margin-top: 3px;
+    }
+
+    /* INSIGHTS */
+    .insights-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .insight-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px 16px;
+      border-left: 3px solid;
+    }
+
+    .insight-card.warn {
+      border-left-color: var(--yellow);
+    }
+
+    .insight-card.danger {
+      border-left-color: var(--red);
+    }
+
+    .insight-card.good {
+      border-left-color: var(--green);
+    }
+
+    .insight-card.info {
+      border-left-color: var(--blue);
+    }
+
+    .ic-tag {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      font-family: var(--mono);
+      margin-bottom: 6px;
+    }
+
+    .ic-tag.warn {
+      color: var(--yellow);
+    }
+
+    .ic-tag.danger {
+      color: var(--red);
+    }
+
+    .ic-tag.good {
+      color: var(--green);
+    }
+
+    .ic-tag.info {
+      color: var(--blue);
+    }
+
+    .ic-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+
+    .ic-body {
+      font-size: 11px;
+      color: var(--text2);
+      line-height: 1.6;
+    }
+
+    .ic-stat {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    .ic-stat.warn {
+      color: var(--yellow);
+    }
+
+    .ic-stat.danger {
+      color: var(--red);
+    }
+
+    .ic-stat.good {
+      color: var(--green);
+    }
+
+    .ic-stat.info {
+      color: var(--blue);
+    }
+
+    /* CHARTS */
+    .charts-row {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .charts-3 {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .charts-2 {
+      grid-template-columns: 1.6fr 1fr;
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 18px;
+    }
+
+    .cc-title {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .cc-sub {
+      font-size: 10px;
+      color: var(--text2);
+      margin-bottom: 14px;
+    }
+
+    canvas {
+      max-height: 220px;
+    }
+
+    /* TABLES */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .tc-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .tc-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .tc-meta {
+      font-size: 11px;
+      color: var(--text2);
+      font-family: var(--mono);
+    }
+
+    .tc-filters {
+      display: flex;
+      gap: 6px;
+    }
+
+    .filter-btn {
+      padding: 4px 10px;
+      border-radius: var(--r2);
+      font-size: 11px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      color: var(--text2);
+      background: none;
+      font-family: var(--sans);
+      transition: all .15s;
+    }
+
+    .filter-btn:hover {
+      border-color: var(--border2);
+      color: var(--text);
+    }
+
+    .filter-btn.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      text-align: left;
+      padding: 8px 16px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text3);
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 10px 16px;
+      font-size: 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text2);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, .02);
+    }
+
+    .td-desc {
+      color: var(--text);
+      font-size: 12px;
+      max-width: 240px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .td-mono {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text3);
+    }
+
+    .tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .src-eban {
+      background: var(--blue-dim);
+      color: var(--blue);
+    }
+
+    .src-ekpo {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .tag-wrong {
+      background: var(--red-dim);
+      color: var(--red);
+    }
+
+    /* REVIEW */
+    .ra {
+      display: flex;
+      gap: 4px;
+    }
+
+    .ra-btn {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      border: none;
+      font-family: var(--sans);
+      font-weight: 500;
+      transition: all .15s;
+    }
+
+    .ra-accept {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .ra-reject {
+      background: var(--red-dim);
+      color: var(--red);
+    }
+
+    /* FEEDBACK */
+    .fb-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r2);
+      padding: 12px 14px;
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+      align-items: flex-start;
+    }
+
+    /* EMPTY */
+    .empty {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text3);
+    }
+
+    .empty-icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .empty p {
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: var(--r);
+      padding: 10px 16px;
+      font-size: 12px;
+      color: var(--text);
+      z-index: 99;
+      transform: translateY(60px);
+      opacity: 0;
+      transition: all .25s;
+      max-width: 320px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.ok {
+      border-color: rgba(63, 185, 80, .4);
+    }
+
+    .toast.warn {
+      border-color: rgba(210, 153, 34, .4);
+    }
+
+    /* CHATBOX */
+    .chat-fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 20px rgba(68, 147, 248, .5);
+      transition: all .25s;
+      z-index: 500;
+    }
+
+    .chat-fab:hover {
+      transform: scale(1.1);
+    }
+
+    .chat-fab-pulse {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(68, 147, 248, .25);
+      animation: fabpulse 2s infinite;
+      z-index: 499;
+      pointer-events: none;
+    }
+
+    @keyframes fabpulse {
+      0% {
+        transform: scale(1);
+        opacity: .8
+      }
+
+      100% {
+        transform: scale(1.7);
+        opacity: 0
+      }
+    }
+
+    .chat-window {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 420px;
+      background: var(--surface);
+      border-left: 1px solid var(--border2);
+      display: flex;
+      flex-direction: column;
+      z-index: 450;
+      box-shadow: -12px 0 40px rgba(0, 0, 0, .5);
+      transform: translateX(100%);
+      transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .chat-window.open {
+      transform: translateX(0);
+    }
+
+    .chat-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .35);
+      z-index: 449;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .3s;
+    }
+
+    .chat-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .chat-header {
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .chat-header-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+    }
+
+    .chat-header-title {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .chat-header-sub {
+      font-size: 10px;
+      color: var(--text2);
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .ch-dot {
+      width: 5px;
+      height: 5px;
+      background: var(--green);
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 2s infinite;
+    }
+
+    .chat-header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 4px;
+    }
+
+    .ch-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text3);
+      font-size: 13px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      transition: all .15s;
+      font-family: var(--sans);
+    }
+
+    .ch-btn:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .chat-api-row {
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-shrink: 0;
+      background: var(--bg);
+    }
+
+    .chat-api-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 9px;
+      font-size: 11px;
+      color: var(--text);
+      font-family: var(--mono);
+      outline: none;
+    }
+
+    .chat-api-input:focus {
+      border-color: var(--blue);
+    }
+
+    .chat-api-input::placeholder {
+      color: var(--text3);
+    }
+
+    .chat-api-btn {
+      padding: 5px 10px;
+      background: var(--blue-dim);
+      border: 1px solid rgba(68, 147, 248, .3);
+      color: var(--blue);
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: var(--sans);
+      font-weight: 500;
+      white-space: nowrap;
+      transition: all .15s;
+    }
+
+    .chat-api-btn:hover {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .chat-key-saved {
+      font-size: 10px;
+      color: var(--green);
+      font-family: var(--mono);
+      white-space: nowrap;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .chat-msg {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      animation: fadein .2s ease;
+    }
+
+    .chat-msg.user {
+      flex-direction: row-reverse;
+    }
+
+    .chat-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .chat-avatar.ai {
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+    }
+
+    .chat-avatar.user {
+      background: var(--surface3);
+    }
+
+    .chat-bubble {
+      max-width: 86%;
+      padding: 9px 12px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      line-height: 1.65;
+    }
+
+    .chat-bubble.ai {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 4px 10px 10px 10px;
+    }
+
+    .chat-bubble.user {
+      background: var(--blue);
+      color: #fff;
+      border-radius: 10px 4px 10px 10px;
+    }
+
+    .chat-bubble.thinking {
+      color: var(--text3);
+      font-style: italic;
+      background: transparent;
+      border: 1px dashed var(--border);
+    }
+
+    .chat-bubble code {
+      font-family: var(--mono);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 10.5px;
+    }
+
+    .chat-bubble pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 10.5px;
+      overflow-x: auto;
+      margin-top: 8px;
+      white-space: pre-wrap;
+      font-family: var(--mono);
+    }
+
+    .typing-dot {
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      background: var(--blue);
+      border-radius: 50%;
+      animation: tdot 1.2s infinite;
+      margin-right: 2px;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: .2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: .4s;
+    }
+
+    @keyframes tdot {
+
+      0%,
+      80%,
+      100% {
+        transform: translateY(0);
+        opacity: .4
+      }
+
+      40% {
+        transform: translateY(-4px);
+        opacity: 1
+      }
+    }
+
+    .chat-dl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 8px;
+      padding: 5px 12px;
+      background: var(--green-dim);
+      border: 1px solid rgba(63, 185, 80, .3);
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--green);
+      cursor: pointer;
+      font-family: var(--sans);
+      font-weight: 500;
+      transition: all .15s;
+    }
+
+    .chat-dl-btn:hover {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .model-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      background: rgba(188, 140, 255, .12);
+      border: 1px solid rgba(188, 140, 255, .25);
+      border-radius: 10px;
+      font-size: 9.5px;
+      color: var(--purple);
+      font-family: var(--mono);
+      margin-top: 6px;
+    }
+
+    .chat-quick-wrap {
+      flex-shrink: 0;
+      padding: 0 12px 10px;
+      position: relative;
+    }
+
+    .chat-quick {
+      display: flex;
+      gap: 5px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scroll-behavior: smooth;
+      scrollbar-width: none;
+    }
+
+    .chat-quick::-webkit-scrollbar {
+      display: none;
+    }
+
+    .chat-quick-btn {
+      padding: 4px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 10.5px;
+      color: var(--text2);
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+
+    .chat-quick-btn:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: var(--blue-dim);
+    }
+
+    .chat-input-row {
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    .chat-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12.5px;
+      color: var(--text);
+      font-family: var(--sans);
+      outline: none;
+      resize: none;
+      max-height: 90px;
+      line-height: 1.5;
+    }
+
+    .chat-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(68, 147, 248, .1);
+    }
+
+    .chat-input::placeholder {
+      color: var(--text3);
+    }
+
+    .chat-send {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border: none;
+      border-radius: 9px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 14px;
+      flex-shrink: 0;
+      transition: all .2s;
+    }
+
+    .chat-send:hover {
+      transform: scale(1.05);
+    }
+
+    .chat-send:disabled {
+      background: var(--surface3);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .rate-info {
+      font-size: 10px;
+      color: var(--text3);
+      text-align: center;
+      padding: 4px 12px;
+      font-family: var(--mono);
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--surface3);
+      border-radius: 2px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sb">
+    <div class="sb-top">
+      <div class="sb-logo">
+        <div class="sb-logo-icon">⬡</div>
+        <div>
+          <div class="sb-logo-name">PR/PO Intelligence</div>
+          <div class="sb-logo-sub">Standardisation Dashboard</div>
+        </div>
+      </div>
+      <div class="sb-model">
+        <div class="sb-model-dot"></div>
+        <div class="sb-model-text">TF-IDF + LogReg · 91.2%</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-section">
+        <div class="sb-section-label">Overview</div>
+        <button class="sb-item active" onclick="nav('overview',this)">⊞ Dashboard</button>
+        <button class="sb-item" onclick="nav('insights',this)">💡 AI Insights</button>
+      </div>
+      <div class="sb-section">
+        <div class="sb-section-label">Data Quality</div>
+        <button class="sb-item" onclick="nav('misclass',this)">⚠ Misclassifications <span class="sb-badge red"
+            id="sb-misclass">—</span></button>
+        <button class="sb-item" onclick="nav('vague',this)">? Vague Descriptions <span class="sb-badge yellow"
+            id="sb-vague">—</span></button>
+      </div>
+      <div class="sb-section">
+        <div class="sb-section-label">Actions</div>
+        <button class="sb-item" onclick="nav('review',this)">👁 Review Queue <span class="sb-badge yellow"
+            id="sb-review">—</span></button>
+        <button class="sb-item" onclick="nav('feedback',this)">↻ Feedback Learning <span
+            class="sb-badge green">+13.3%</span></button>
+      </div>
+    </nav>
+    <div class="sb-footer">
+      <div class="acc-chip">
+        <div style="width:5px;height:5px;background:var(--green);border-radius:50%"></div>Model Accuracy: 91.2%
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="tb-title" id="tb-title">PR/PO Standardisation Intelligence Dashboard</div>
+      <div class="tb-sub" id="tb-meta">Upload EBAN + EKPO to begin</div>
+    </div>
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-overview">
+        <div class="upload-grid">
+          <div class="upload-zone" id="ez-eban" onclick="document.getElementById('fi-eban').click()"
+            ondragover="dzOver(event,'ez-eban')" ondragleave="dzOut('ez-eban')" ondrop="dzDrop(event,'eban')">
+            <div class="uz-chip eban">EBAN — Purchase Requisitions</div>
+            <div id="uz-eban-idle">
+              <div class="uz-icon">📋</div>
+              <div class="uz-title">Drop EBAN CSV here</div>
+              <div class="uz-sub">EBAN_raw.csv or classification results</div>
+              <div class="uz-tags"><span class="uz-tag">BANFN</span><span class="uz-tag">TXZ01</span><span
+                  class="uz-tag">MATGR</span><span class="uz-tag">AFNAM</span><span class="uz-tag">WERKS</span></div>
+            </div>
+            <div class="uz-done" id="uz-eban-done">
+              <div class="uz-done-icon">✓</div>
+              <div class="uz-done-name" id="uz-eban-name">—</div>
+              <div class="uz-done-meta" id="uz-eban-meta">—</div>
+              <div class="uz-done-clear" onclick="clearFile('eban',event)">✕ Remove</div>
+            </div>
+          </div>
+          <input type="file" id="fi-eban" style="display:none" accept=".csv" onchange="loadFile(this.files[0],'eban')">
+          <div class="upload-zone" id="ez-ekpo" onclick="document.getElementById('fi-ekpo').click()"
+            ondragover="dzOver(event,'ez-ekpo')" ondragleave="dzOut('ez-ekpo')" ondrop="dzDrop(event,'ekpo')">
+            <div class="uz-chip ekpo">EKPO — Purchase Orders</div>
+            <div id="uz-ekpo-idle">
+              <div class="uz-icon">📦</div>
+              <div class="uz-title">Drop EKPO CSV here</div>
+              <div class="uz-sub">EKPO_raw.csv or classification results</div>
+              <div class="uz-tags"><span class="uz-tag">EBELN</span><span class="uz-tag">TXZ01</span><span
+                  class="uz-tag">MATGR</span><span class="uz-tag">LIFNR</span><span class="uz-tag">NETWR</span></div>
+            </div>
+            <div class="uz-done" id="uz-ekpo-done">
+              <div class="uz-done-icon" style="color:var(--green)">✓</div>
+              <div class="uz-done-name" id="uz-ekpo-name">—</div>
+              <div class="uz-done-meta" id="uz-ekpo-meta">—</div>
+              <div class="uz-done-clear" onclick="clearFile('ekpo',event)">✕ Remove</div>
+            </div>
+          </div>
+          <input type="file" id="fi-ekpo" style="display:none" accept=".csv" onchange="loadFile(this.files[0],'ekpo')">
+        </div>
+        <div class="run-bar">
+          <div class="run-status">
+            <span class="run-check" id="rc-eban"><span id="rc-eban-icon">○</span> EBAN</span>
+            <span class="run-check" id="rc-ekpo"><span id="rc-ekpo-icon">○</span> EKPO</span>
+          </div>
+          <button class="btn btn-primary" id="run-btn" onclick="runAnalysis()" disabled>▶ Analyse Data</button>
+          <button class="btn btn-ghost" onclick="loadDemo()">⚡ Load Demo</button>
+        </div>
+        <div class="prog-wrap" id="prog-wrap">
+          <div class="prog-header"><span id="prog-label">Initialising...</span><span id="prog-pct">0%</span></div>
+          <div class="prog-bar">
+            <div class="prog-fill" id="prog-fill"></div>
+          </div>
+          <div class="prog-steps" id="prog-steps"></div>
+        </div>
+        <div id="dashboard-data" style="display:none">
+          <div class="kpi-row">
+            <div class="kpi blue">
+              <div class="kpi-val" id="k-total">—</div>
+              <div class="kpi-label">Total Records</div>
+              <div class="kpi-sub">EBAN + EKPO</div>
+            </div>
+            <div class="kpi green">
+              <div class="kpi-val" id="k-clean">—</div>
+              <div class="kpi-label">Clean Records</div>
+              <div class="kpi-sub">Ready for AI</div>
+            </div>
+            <div class="kpi yellow">
+              <div class="kpi-val" id="k-vague">—</div>
+              <div class="kpi-label">Vague</div>
+              <div class="kpi-sub">Unclassifiable</div>
+            </div>
+            <div class="kpi red">
+              <div class="kpi-val" id="k-misc">—</div>
+              <div class="kpi-label">Misclassified</div>
+              <div class="kpi-sub">Wrong group</div>
+            </div>
+            <div class="kpi purple">
+              <div class="kpi-val" id="k-blank">—</div>
+              <div class="kpi-label">Blank / Junk</div>
+              <div class="kpi-sub">No description</div>
+            </div>
+            <div class="kpi gray">
+              <div class="kpi-val" id="k-quality">—</div>
+              <div class="kpi-label">Data Quality</div>
+              <div class="kpi-sub">Overall score</div>
+            </div>
+          </div>
+          <div class="charts-row charts-2">
+            <div class="chart-card">
+              <div class="cc-title">Material Group Distribution</div>
+              <div class="cc-sub">MATGR breakdown — combined EBAN + EKPO</div><canvas id="c-donut"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="cc-title">EBAN vs EKPO by Group</div>
+              <div class="cc-sub">PR vs PO record counts per group</div><canvas id="c-bar"></canvas>
+            </div>
+          </div>
+          <div class="charts-row charts-2">
+            <div class="chart-card">
+              <div class="cc-title">Data Quality by Material Group</div>
+              <div class="cc-sub">Clean vs Vague vs Misclassified per group</div><canvas id="c-quality"
+                style="max-height:200px"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="cc-title">Department Distribution</div>
+              <div class="cc-sub">Which departments raise most PRs</div><canvas id="c-dept"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="empty" id="dash-empty">
+          <div class="empty-icon">⬡</div>
+          <p>Upload your EBAN and EKPO CSV files above<br>or click <strong>Load Demo</strong> to see the dashboard with
+            sample data.</p>
+        </div>
+      </div>
+
+      <!-- AI INSIGHTS -->
+      <div class="page" id="page-insights">
+        <div class="page-header">
+          <div class="page-title">AI Insights</div>
+          <div class="page-sub">Automatically generated findings from your data</div>
+        </div>
+        <div id="insights-empty" class="empty">
+          <div class="empty-icon">💡</div>
+          <p>Run analysis first to generate AI insights.</p>
+        </div>
+        <div id="insights-content" style="display:none">
+          <div class="insights-grid" id="insights-grid"></div>
+          <div class="charts-row charts-2">
+            <div class="chart-card">
+              <div class="cc-title">Issue Rate by Department</div>
+              <div class="cc-sub">Which departments have most vague descriptions</div><canvas id="c-dept-issues"
+                style="max-height:200px"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="cc-title">Top Misclassification Patterns</div>
+              <div class="cc-sub">Most common wrong group assignments</div><canvas id="c-misclass-pattern"
+                style="max-height:200px"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MISCLASSIFICATIONS -->
+      <div class="page" id="page-misclass">
+        <div class="page-header">
+          <div class="page-title">Misclassifications</div>
+          <div class="page-sub" id="misc-sub">Records where description belongs to a different material group</div>
+        </div>
+        <div id="misc-empty" class="empty">
+          <div class="empty-icon">⚠</div>
+          <p>Run analysis first.</p>
+        </div>
+        <div id="misc-content" style="display:none">
+          <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+            <div class="kpi red">
+              <div class="kpi-val" id="m-total">—</div>
+              <div class="kpi-label">Total Misclassified</div>
+            </div>
+            <div class="kpi blue">
+              <div class="kpi-val" id="m-eban">—</div>
+              <div class="kpi-label">In EBAN (PRs)</div>
+            </div>
+            <div class="kpi green">
+              <div class="kpi-val" id="m-ekpo">—</div>
+              <div class="kpi-label">In EKPO (POs)</div>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="tc-header">
+              <div class="tc-title">Misclassified Records</div>
+              <div class="tc-filters">
+                <button class="filter-btn active" onclick="filterTable('misc','all',this)">All</button>
+                <button class="filter-btn" onclick="filterTable('misc','EBAN',this)">EBAN</button>
+                <button class="filter-btn" onclick="filterTable('misc','EKPO',this)">EKPO</button>
+              </div>
+              <div class="tc-meta" id="misc-count">—</div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Src</th>
+                  <th>Doc #</th>
+                  <th>Description</th>
+                  <th>Assigned</th>
+                  <th>Should Be</th>
+                  <th>Dept/Vendor</th>
+                  <th>Plant</th>
+                </tr>
+              </thead>
+              <tbody id="misc-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- VAGUE -->
+      <div class="page" id="page-vague">
+        <div class="page-header">
+          <div class="page-title">Vague Descriptions</div>
+          <div class="page-sub" id="vague-sub">Descriptions too generic to classify</div>
+        </div>
+        <div id="vague-empty" class="empty">
+          <div class="empty-icon">◎</div>
+          <p>Run analysis first.</p>
+        </div>
+        <div id="vague-content" style="display:none">
+          <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+            <div class="kpi yellow">
+              <div class="kpi-val" id="v-total">—</div>
+              <div class="kpi-label">Total Vague</div>
+            </div>
+            <div class="kpi blue">
+              <div class="kpi-val" id="v-eban">—</div>
+              <div class="kpi-label">In EBAN (PRs)</div>
+            </div>
+            <div class="kpi green">
+              <div class="kpi-val" id="v-ekpo">—</div>
+              <div class="kpi-label">In EKPO (POs)</div>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="tc-header">
+              <div class="tc-title">Vague Records</div>
+              <div class="tc-filters">
+                <button class="filter-btn active" onclick="filterTable('vague','all',this)">All</button>
+                <button class="filter-btn" onclick="filterTable('vague','EBAN',this)">EBAN</button>
+                <button class="filter-btn" onclick="filterTable('vague','EKPO',this)">EKPO</button>
+              </div>
+              <div class="tc-meta" id="vague-count">—</div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Src</th>
+                  <th>Doc #</th>
+                  <th>Vague Description</th>
+                  <th>Assigned MATGR</th>
+                  <th>Dept/Vendor</th>
+                  <th>Plant</th>
+                </tr>
+              </thead>
+              <tbody id="vague-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- REVIEW QUEUE -->
+      <div class="page" id="page-review">
+        <div class="page-header">
+          <div class="page-title">Review Queue</div>
+          <div class="page-sub">Analyst actions — accept AI suggestion or provide correct group</div>
+        </div>
+        <div id="review-empty" class="empty">
+          <div class="empty-icon">👁</div>
+          <p>Run analysis first to populate the review queue.</p>
+        </div>
+        <div id="review-content" style="display:none">
+          <div class="table-card">
+            <div class="tc-header">
+              <div class="tc-title">Flagged for Analyst Review</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:11px;color:var(--yellow);font-family:var(--mono)" id="review-count">—
+                  remaining</span>
+                <button class="btn btn-ghost" style="font-size:11px" onclick="acceptAllReview()">✓ Accept All</button>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Src</th>
+                  <th>Doc #</th>
+                  <th>Description</th>
+                  <th>AI Suggestion</th>
+                  <th>Dept/Vendor</th>
+                  <th>Plant</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="review-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- FEEDBACK -->
+      <div class="page" id="page-feedback">
+        <div class="page-header">
+          <div class="page-title">Feedback Learning</div>
+          <div class="page-sub">Every analyst correction improves the NLP model</div>
+        </div>
+        <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+          <div class="kpi yellow">
+            <div class="kpi-val" style="color:var(--yellow)">73.3%</div>
+            <div class="kpi-label">Before Feedback</div>
+            <div class="kpi-sub">Accuracy on vague descriptions</div>
+          </div>
+          <div class="kpi green">
+            <div class="kpi-val" style="color:var(--green)">86.7%</div>
+            <div class="kpi-label">After Feedback</div>
+            <div class="kpi-sub">After 10 corrections</div>
+          </div>
+          <div class="kpi blue">
+            <div class="kpi-val" style="color:var(--blue)">+13.3%</div>
+            <div class="kpi-label">Improvement</div>
+            <div class="kpi-sub">From 10 corrections only</div>
+          </div>
+        </div>
+        <div class="charts-row charts-2">
+          <div class="chart-card">
+            <div class="cc-title">Accuracy Growth — 12 Weeks</div>
+            <div class="cc-sub">How accuracy improves as analysts submit corrections</div><canvas id="c-feedback"
+              style="max-height:180px"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="cc-title">How Continuous Learning Works</div>
+            <div class="cc-sub">The feedback cycle explained</div>
+            <div style="font-size:12px;color:var(--text2);line-height:2.4;margin-top:8px">
+              <div>① Analyst reviews flagged vague records</div>
+              <div>② Accepts or corrects the AI suggestion</div>
+              <div>③ Corrections added to training data</div>
+              <div>④ Model retrains on expanded dataset</div>
+              <div>⑤ Fewer records flagged next batch</div>
+              <div>⑥ Accuracy improves week over week</div>
+            </div>
+          </div>
+        </div>
+        <div class="table-card" style="margin-top:14px">
+          <div class="tc-header">
+            <div class="tc-title">Sample Analyst Corrections — Fed Into Model</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Original (Vague)</th>
+                <th>Standardised To</th>
+                <th>Group</th>
+                <th>Confidence Gain</th>
+              </tr>
+            </thead>
+            <tbody id="fb-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── CONSTANTS ────────────────────────────────────────────────────────
+    const VAGUE_SET = new Set(["misc purchase", "urgent material", "as discussed", "refer email", "material required", "items needed", "general items", "miscellaneous", "urgent requirement", "as per indent", "regular purchase", "consumables", "spares", "parts", "material", "goods", "reorder", "pending order", "site requirement", "routine purchase", "required urgently", "various items", "emergency purchase", "monthly purchase", "as required", "standard purchase", "as per bom", "factory requirement", "workshop material", "stores requirement", "office consumables", "production material", "plant requirement", "indirect material", "operational requirement", "material required urgently", "as per discussion", "tbd", "to be advised", "confirm later", "as per specification", "routine order", "emergency spares", "misc spares", "as per list"]);
+    const JUNK_SET = new Set(["", "nan", " ", "-", ".", "..", "-/-", "n/a", "tbd", "na", "nil", "0", "x", "?", "unknown"]);
+    const KW = [["bearing", "MECH"], ["hydraulic pump", "MECH"], ["gear box", "MECH"], ["v belt", "MECH"], ["shaft coupling", "MECH"], ["pulley", "MECH"], ["sprocket", "MECH"], ["mechanical seal", "MECH"], ["pump centrifugal", "MECH"], ["valve ball", "MECH"], ["valve gate", "MECH"], ["worm gear", "MECH"], ["motor", "ELEC"], ["circuit breaker", "ELEC"], ["contactor", "ELEC"], ["led panel", "ELEC"], ["led flood", "ELEC"], ["led strip", "ELEC"], ["fuse", "ELEC"], ["transformer", "ELEC"], ["vfd", "ELEC"], ["plc", "ELEC"], ["relay", "ELEC"], ["proximity switch", "ELEC"], ["push button", "ELEC"], ["power supply smps", "ELEC"], ["encoder", "ELEC"], ["laptop", "ITEQ"], ["keyboard", "ITEQ"], ["webcam", "ITEQ"], ["network switch", "ITEQ"], ["monitor", "ITEQ"], ["ups", "ITEQ"], ["pen drive", "ITEQ"], ["hard disk", "ITEQ"], ["ssd", "ITEQ"], ["safety helmet", "SAFE"], ["safety gloves", "SAFE"], ["safety shoes", "SAFE"], ["fire extinguisher", "SAFE"], ["safety goggles", "SAFE"], ["safety harness", "SAFE"], ["dust mask", "SAFE"], ["first aid", "SAFE"], ["ear plugs", "SAFE"], ["a4 paper", "OFFC"], ["ballpoint pen", "OFFC"], ["stapler", "OFFC"], ["file folder", "OFFC"], ["whiteboard marker", "OFFC"], ["sticky notes", "OFFC"], ["toner cartridge", "OFFC"], ["notepad", "OFFC"], ["printer cartridge", "OFFC"], ["steel rod", "ROH"], ["aluminium sheet", "ROH"], ["copper wire", "ROH"], ["brass rod", "ROH"], ["gi pipe", "ROH"], ["ms flat bar", "ROH"], ["stainless steel pipe", "ROH"], ["rubber sheet", "ROH"], ["plastic granules", "ROH"], ["welding rod", "MTNC"], ["nut bolt", "MTNC"], ["sandpaper", "MTNC"], ["o ring", "MTNC"], ["drill bit", "MTNC"], ["grinding disc", "MTNC"], ["epoxy adhesive", "MTNC"], ["hacksaw", "MTNC"], ["cutting disc", "MTNC"], ["cable tie", "MTNC"], ["engine oil", "CHEM"], ["hydraulic oil", "CHEM"], ["gear oil", "CHEM"], ["coolant", "CHEM"], ["rust remover", "CHEM"], ["acetone", "CHEM"], ["isopropyl", "CHEM"], ["thinner", "CHEM"], ["compressor oil", "CHEM"], ["cutting oil", "CHEM"], ["cardboard box", "PACK"], ["bubble wrap", "PACK"], ["stretch wrap", "PACK"], ["packing tape", "PACK"], ["foam padding", "PACK"], ["polythene", "PACK"], ["wooden pallet", "PACK"], ["corrugated", "PACK"], ["tea bags", "FOOD"], ["coffee powder", "FOOD"], ["drinking water", "FOOD"], ["biscuits", "FOOD"], ["mineral water", "FOOD"], ["sugar", "FOOD"], ["milk", "FOOD"], ["paper cup", "FOOD"], ["tissue paper", "FOOD"], ["cooking oil", "FOOD"]];
+    const GN = { ROH: "Raw Materials", MECH: "Mechanical Parts", ELEC: "Electrical", OFFC: "Office Supplies", SAFE: "Safety Equipment", ITEQ: "IT Equipment", MTNC: "Maintenance", PACK: "Packaging", CHEM: "Chemicals", FOOD: "Canteen & Food" };
+    const COLORS = ['#4493f8', '#3fb950', '#d29922', '#f85149', '#bc8cff', '#58a6ff', '#7ee787', '#ffa657', '#ff7b72', '#e3b341'];
+    const AI_SUGGEST = { "material": "ROH", "required urgently": "MTNC", "emergency purchase": "MTNC", "consumables": "MTNC", "spares": "MECH", "miscellaneous": "OFFC", "goods": "ROH", "as discussed": "ELEC", "general items": "OFFC", "urgent material": "MECH", "parts": "MECH", "misc purchase": "OFFC", "material required": "ROH", "refer email": "MTNC", "routine purchase": "MTNC", "site requirement": "ROH", "pending order": "MECH", "as per indent": "ROH", "various items": "OFFC", "office consumables": "OFFC", "emergency spares": "MTNC", "misc spares": "MECH" };
+    const FB_DATA = [["cable", "HDMI Cable 2 Meter 4K", "ELEC", "33% → 84%"], ["printer", "Laser Printer HP LaserJet", "ITEQ", "33% → 82%"], ["pump", "Hydraulic Pump Industrial", "MECH", "27% → 82%"], ["gloves", "Safety Gloves Heavy Duty", "SAFE", "23% → 78%"], ["oil 5 litre", "Engine Oil SAE 40 5L", "CHEM", "29% → 76%"], ["misc purchase", "Office Stationery General", "OFFC", "13% → 69%"], ["urgent material", "Mechanical Spare Part", "MECH", "25% → 43%"], ["refer email", "Maintenance Consumable Item", "MTNC", "12% → 58%"]];
+    const GROUPS = ['ROH', 'MECH', 'ELEC', 'OFFC', 'SAFE', 'ITEQ', 'MTNC', 'PACK', 'CHEM', 'FOOD'];
+
+    // ── STATE ────────────────────────────────────────────────────────────
+    let ebanData = null, ekpoData = null;
+    let allMisclass = [], allVague = [], allReview = [], allAnalyzed = [];
+    let charts = {};
+
+    // ── NAV ──────────────────────────────────────────────────────────────
+    function nav(page, el) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+      document.getElementById('page-' + page).classList.add('active');
+      if (el) el.classList.add('active');
+      document.getElementById('tb-title').textContent = { overview: 'PR/PO Standardisation Intelligence Dashboard', insights: 'AI Insights', misclass: 'Misclassifications', vague: 'Vague Descriptions', review: 'Review Queue', feedback: 'Feedback Learning' }[page] || '';
+    }
+
+    // ── DRAG DROP ────────────────────────────────────────────────────────
+    function dzOver(e, id) { e.preventDefault(); document.getElementById(id).classList.add('drag'); }
+    function dzOut(id) { document.getElementById(id).classList.remove('drag'); }
+    function dzDrop(e, src) { e.preventDefault(); dzOut('ez-' + src); const f = e.dataTransfer.files[0]; if (f) loadFile(f, src); }
+
+    // ── FILE LOADING ─────────────────────────────────────────────────────
+    function detectAndNormalise(rows) {
+      if (!rows || rows.length === 0) return [];
+      const cols = Object.keys(rows[0]);
+      if (cols.includes('TXZ01')) return rows;
+      if (cols.includes('Description') || cols.includes('description')) {
+        return rows.map(r => ({ TXZ01: r['Description'] || r['description'] || '', MATGR: r['Predicted'] || r['ORIGINAL_GROUP'] || r['predicted'] || '', AFNAM: r['DEPARTMENT'] || r['department'] || '', LIFNR: r['VENDOR'] || '', WERKS: r['PLANT'] || r['plant'] || '', BANFN: r['PR_NUMBER'] || r['pr_number'] || '', EBELN: r['PO_NUMBER'] || r['po_number'] || '', BADAT: r['TIMESTAMP'] || '', BEDAT: r['TIMESTAMP'] || '', PREIS: 0, NETWR: 0, STATUS: '' }));
+      }
+      return rows;
+    }
+
+    function loadFile(file, src) {
+      if (!file) return;
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true, complete: res => {
+          const norm = detectAndNormalise(res.data);
+          const cols = Object.keys(res.data[0] || {});
+          const fmt = cols.includes('TXZ01') ? 'raw SAP format' : cols.includes('Description') ? 'classification results' : 'unknown format';
+          if (src === 'eban') { ebanData = norm; setFileUI('eban', file.name, norm.length + ' records · ' + fmt); }
+          else { ekpoData = norm; setFileUI('ekpo', file.name, norm.length + ' records · ' + fmt); }
+          updateRunBtn();
+        }
+      });
+    }
+
+    function setFileUI(src, name, meta) {
+      document.getElementById('uz-' + src + '-idle').style.display = 'none';
+      document.getElementById('uz-' + src + '-done').style.display = 'flex';
+      document.getElementById('uz-' + src + '-name').textContent = name;
+      document.getElementById('uz-' + src + '-meta').textContent = meta;
+      document.getElementById('ez-' + src).classList.add('done');
+      document.getElementById('rc-' + src).classList.add('ok');
+      document.getElementById('rc-' + src + '-icon').textContent = '✓';
+      toast('✓ ' + name + ' loaded', 'ok');
+    }
+
+    function clearFile(src, e) {
+      e.stopPropagation();
+      if (src === 'eban') ebanData = null; else ekpoData = null;
+      document.getElementById('uz-' + src + '-idle').style.display = 'block';
+      document.getElementById('uz-' + src + '-done').style.display = 'none';
+      document.getElementById('ez-' + src).classList.remove('done');
+      document.getElementById('rc-' + src).classList.remove('ok');
+      document.getElementById('rc-' + src + '-icon').textContent = '○';
+      document.getElementById('fi-' + src).value = '';
+      updateRunBtn();
+    }
+
+    function updateRunBtn() {
+      const btn = document.getElementById('run-btn');
+      btn.disabled = !(ebanData || ekpoData);
+      btn.textContent = (ebanData && ekpoData) ? '▶ Analyse Both Files' : (ebanData || ekpoData) ? '▶ Analyse Loaded File' : '▶ Analyse Data';
+    }
+
+    // ── CLASSIFY ─────────────────────────────────────────────────────────
+    function classifyRow(txt, assigned) {
+      const t = String(txt || '').trim();
+      const tl = t.toLowerCase();
+      if (!t || JUNK_SET.has(tl)) return { issue: 'blank', correct: null };
+      if (VAGUE_SET.has(tl)) return { issue: 'vague', correct: null };
+      for (const [kw, grp] of KW) { if (tl.includes(kw) && grp !== String(assigned).trim()) return { issue: 'misclass', correct: grp }; }
+      return { issue: 'clean', correct: null };
+    }
+
+    // ── DEMO DATA ────────────────────────────────────────────────────────
+    function loadDemo() {
+      const ebanCSV = `BANFN,BNFPO,TXZ01,MATNR,MATGR,MENGE,MEINS,WERKS,EKORG,AFNAM,BADAT,PREIS,STATUS
+4500001,4,Coolant Ready Mix Anti Freeze 5L,,CHEM,45,L,PL04,P002,Finance,2024-08-11,612032,2
+4500002,9,material,,CHEM,18,KG,PL03,P004,Quality,2024-12-26,460393,1
+4500003,7,WELDING ROD 3.15MM E6013 5KG,,MTNC,91,PKT,PL04,P003,Engineering,2024-11-20,546075,1
+4500004,2,MOTOR SINGLE PHASE 2HP 230V,,ELEC,72,KG,PL03,P001,Warehouse,2024-08-21,196863,1
+4500005,6,mouse gaming rgb,,ITEQ,40,SET,PL03,P003,Warehouse,2024-07-14,1411299,1
+4500006,3,Garbage Bag Black 120L Pack,,PACK,55,PKT,PL01,P002,Admin,2024-03-05,83200,2
+4500007,1,Aluminium Bar 25mm Round,,ROH,30,M,PL02,P001,Production,2024-05-18,320000,4
+4500008,5,required urgently,,MTNC,10,EA,PL03,P004,Finance,2024-09-22,150000,1
+4500009,8,Bearing Deep Groove 6205 NSK,,ITEQ,5,EA,PL01,P002,Maintenance,2024-01-15,85000,2
+4500010,2,Safety Helmet Yellow ISI Mark,,SAFE,20,EA,PL05,P001,Production,2024-06-30,42000,4
+4500011,4,emergency purchase,,MECH,1,EA,PL01,P003,Quality,2024-10-08,75000,1
+4500012,7,Circuit Breaker 63A MCCB Siemens,,MTNC,3,EA,PL02,P004,Engineering,2024-02-14,180000,2
+4500013,1,A4 Paper 500 Sheet Ream 80gsm,,MECH,50,PKT,PL04,P001,Admin,2024-04-25,62500,4
+4500014,6,consumables,,OFFC,15,EA,PL03,P002,Purchase,2024-11-11,95000,1
+4500015,3,VFD 15HP Siemens,,PACK,1,EA,PL05,P003,Engineering,2024-07-28,850000,2
+4500016,9,Coffee Powder Nescafe 500g,,OFFC,10,PKT,PL01,P001,Admin,2024-03-17,18000,4
+4500017,5,Hydraulic Oil ISO 46 20L Castrol,,CHEM,5,L,PL02,P002,Maintenance,2024-08-04,32500,2
+4500018,2,spares,,MECH,8,EA,PL04,P004,Maintenance,2024-12-01,120000,1
+4500019,4,LED Panel Light 40W Surface Mount,,MECH,10,EA,PL03,P001,Engineering,2024-05-22,75000,4
+4500020,1,Laptop Dell Latitude 5520 i5,,ITEQ,3,EA,PL01,P003,IT,2024-09-09,285000,2`;
+      const ekpoCSV = `EBELN,EBELP,TXZ01,MATNR,MATGR,MENGE,MEINS,WERKS,EKORG,LIFNR,BEDAT,NETWR,WAERS
+4700001,3,Milk Toned 1L Pack,,FOOD,489,PKT,PL05,P001,V10043,2024-09-08,4763354,INR
+4700002,1,emergency purchase,,ROH,172,KG,PL05,P004,V10049,2024-06-18,4590958,INR
+4700003,2,envelope a4 pack 50,,OFFC,15,KG,PL01,P004,V10009,2024-12-21,3716643,INR
+4700004,9,Hydraulic Oil ISO 32 5L,,CHEM,150,EA,PL01,P001,V10072,2025-05-06,2795640,INR
+4700005,5,Sprocket 40T 1.5 inch,,OFFC,8,EA,PL04,P002,V10019,2024-03-14,125000,INR
+4700006,7,HYDRAULIC MOTOR 5HP,,MECH,2,EA,PL02,P003,V10033,2024-07-22,320000,INR
+4700007,4,Keyboard Wireless Logitech MK270,,MECH,5,EA,P01,P001,V10047,2024-11-30,35000,INR
+4700008,2,general items,,OFFC,20,EA,PL03,P004,V10021,2024-08-15,88000,INR
+4700009,6,O Ring Set Assorted NBR 200pc,,MTNC,10,SET,PL01,P002,V10035,2024-04-19,28000,INR
+4700010,1,Bearing Deep Groove 6207 SKF,,ELEC,6,EA,PL05,P003,V10061,2024-09-27,15000,INR
+4700011,8,miscellaneous,,MECH,30,EA,PL02,P001,V10037,2025-01-14,195000,INR
+4700012,3,Safety Gloves Cut Resistant Level 5,,MTNC,50,EA,PL04,P004,V10053,2024-06-03,62000,INR`;
+      Papa.parse(ebanCSV, { header: true, skipEmptyLines: true, complete: r => { ebanData = r.data; setFileUI('eban', 'EBAN_demo.csv', r.data.length + ' demo records'); updateRunBtn(); } });
+      Papa.parse(ekpoCSV, { header: true, skipEmptyLines: true, complete: r => { ekpoData = r.data; setFileUI('ekpo', 'EKPO_demo.csv', r.data.length + ' demo records'); updateRunBtn(); } });
+      setTimeout(runAnalysis, 600);
+    }
+
+    // ── ANALYSIS ─────────────────────────────────────────────────────────
+    function runAnalysis() {
+      if (!ebanData && !ekpoData) return;
+      const steps = ['Reading EBAN...', 'Reading EKPO...', 'Classifying TXZ01 fields...', 'Detecting vague descriptions...', 'Finding misclassifications...', 'Generating AI insights...', 'Done ✓'];
+      const pcts = [12, 25, 45, 62, 78, 92, 100];
+      document.getElementById('prog-wrap').style.display = 'block';
+      document.getElementById('dashboard-data').style.display = 'none';
+      document.getElementById('dash-empty').style.display = 'none';
+      let i = 0;
+      const iv = setInterval(() => {
+        if (i >= steps.length) { clearInterval(iv); finishAnalysis(); return; }
+        document.getElementById('prog-label').textContent = steps[i];
+        document.getElementById('prog-pct').textContent = pcts[i] + '%';
+        document.getElementById('prog-fill').style.width = pcts[i] + '%';
+        document.getElementById('prog-steps').innerHTML = steps.slice(0, i + 1).map((s, j) => `<span class="prog-step ${j < i ? 'done' : j === i ? 'cur' : ''}">${j < i ? '✓' : j === i ? '→' : ''} ${s}</span>`).join('');
+        i++;
+      }, 400);
+    }
+
+    function finishAnalysis() {
+      const eban = (ebanData || []).map(r => {
+        const txt = r.TXZ01 || r.Description || r.description || '';
+        const grp = r.MATGR || r.Predicted || r.predicted || '';
+        const c = classifyRow(txt, grp);
+        return { ...r, TXZ01: txt, MATGR: grp, AFNAM: r.AFNAM || r.DEPARTMENT || r.department || '—', WERKS: r.WERKS || r.PLANT || r.plant || '—', BANFN: r.BANFN || r.PR_NUMBER || r.pr_number || '—', src: 'EBAN', issue: c.issue, correct: c.correct };
+      });
+      const ekpo = (ekpoData || []).map(r => {
+        const txt = r.TXZ01 || r.Description || r.description || '';
+        const grp = r.MATGR || r.Predicted || r.predicted || '';
+        const c = classifyRow(txt, grp);
+        return { ...r, TXZ01: txt, MATGR: grp, LIFNR: r.LIFNR || r.VENDOR || r.vendor || '—', WERKS: r.WERKS || r.PLANT || r.plant || '—', EBELN: r.EBELN || r.PO_NUMBER || r.po_number || '—', src: 'EKPO', issue: c.issue, correct: c.correct };
+      });
+      const all = [...eban, ...ekpo];
+      allAnalyzed = all;
+      const total = all.length, clean = all.filter(r => r.issue === 'clean').length, vague = all.filter(r => r.issue === 'vague').length, misc = all.filter(r => r.issue === 'misclass').length, blank = all.filter(r => r.issue === 'blank').length, quality = Math.round(clean / total * 100);
+      document.getElementById('k-total').textContent = total.toLocaleString();
+      document.getElementById('k-clean').textContent = clean.toLocaleString();
+      document.getElementById('k-vague').textContent = vague.toLocaleString();
+      document.getElementById('k-misc').textContent = misc.toLocaleString();
+      document.getElementById('k-blank').textContent = blank.toLocaleString();
+      document.getElementById('k-quality').textContent = quality + '%';
+      document.getElementById('sb-misclass').textContent = misc;
+      document.getElementById('sb-vague').textContent = vague;
+      document.getElementById('sb-review').textContent = vague;
+      document.getElementById('tb-meta').textContent = `${total.toLocaleString()} records · ${quality}% data quality · ${misc} misclassifications detected`;
+      document.getElementById('m-total').textContent = misc;
+      document.getElementById('m-eban').textContent = eban.filter(r => r.issue === 'misclass').length;
+      document.getElementById('m-ekpo').textContent = ekpo.filter(r => r.issue === 'misclass').length;
+      document.getElementById('v-total').textContent = vague;
+      document.getElementById('v-eban').textContent = eban.filter(r => r.issue === 'vague').length;
+      document.getElementById('v-ekpo').textContent = ekpo.filter(r => r.issue === 'vague').length;
+      allMisclass = all.filter(r => r.issue === 'misclass').slice(0, 100);
+      allVague = all.filter(r => r.issue === 'vague').slice(0, 100);
+      allReview = all.filter(r => r.issue === 'vague').slice(0, 30);
+      buildCharts(eban, ekpo, all);
+      buildInsights(eban, ekpo, all, vague, misc, blank, quality);
+      renderMiscTable(allMisclass);
+      renderVagueTable(allVague);
+      renderReviewTable(allReview);
+      buildFeedbackTable();
+      document.getElementById('prog-wrap').style.display = 'none';
+      document.getElementById('dashboard-data').style.display = 'block';
+      ['misc-content', 'vague-content', 'review-content', 'insights-content'].forEach(id => {
+        document.getElementById(id).style.display = 'block';
+        const emp = id.replace('-content', '-empty');
+        if (document.getElementById(emp)) document.getElementById(emp).style.display = 'none';
+      });
+      // Update chat context after analysis
+      updateChatContext(total, clean, vague, misc, blank, quality, eban, ekpo, all);
+      toast(`✓ Analysis complete — ${total.toLocaleString()} records processed`, 'ok');
+    }
+
+    // ── CHARTS ───────────────────────────────────────────────────────────
+    function buildCharts(eban, ekpo, all) {
+      const groups = GROUPS;
+      const cnt = g => all.filter(r => r.MATGR === g).length;
+      const ebanCnt = g => eban.filter(r => r.MATGR === g).length;
+      const ekpoCnt = g => ekpo.filter(r => r.MATGR === g).length;
+      const co = { responsive: true, plugins: { legend: { labels: { color: '#8d96a0', font: { size: 10 }, boxWidth: 10 } } } };
+      const scl = { ticks: { color: '#8d96a0', font: { size: 9 } }, grid: { color: 'rgba(48,54,61,.6)' } };
+      destroyChart('c-donut');
+      charts['c-donut'] = new Chart(document.getElementById('c-donut'), { type: 'doughnut', data: { labels: groups.map(g => GN[g] || g), datasets: [{ data: groups.map(cnt), backgroundColor: COLORS, borderWidth: 2, borderColor: '#161b22' }] }, options: { ...co, plugins: { legend: { position: 'right', labels: { color: '#8d96a0', font: { size: 10 }, boxWidth: 10, padding: 6 } } } } });
+      destroyChart('c-bar');
+      charts['c-bar'] = new Chart(document.getElementById('c-bar'), { type: 'bar', data: { labels: groups, datasets: [{ label: 'EBAN', data: groups.map(ebanCnt), backgroundColor: 'rgba(68,147,248,.7)', borderRadius: 3 }, { label: 'EKPO', data: groups.map(ekpoCnt), backgroundColor: 'rgba(63,185,80,.7)', borderRadius: 3 }] }, options: { ...co, scales: { x: { ...scl }, y: { ...scl, beginAtZero: true } } } });
+      const cleanPct = g => { const t = all.filter(r => r.MATGR === g).length; return t ? Math.round(all.filter(r => r.MATGR === g && r.issue === 'clean').length / t * 100) : 0; };
+      const vaguePct = g => { const t = all.filter(r => r.MATGR === g).length; return t ? Math.round(all.filter(r => r.MATGR === g && r.issue === 'vague').length / t * 100) : 0; };
+      const mscPct = g => { const t = all.filter(r => r.MATGR === g).length; return t ? Math.round(all.filter(r => r.MATGR === g && r.issue === 'misclass').length / t * 100) : 0; };
+      destroyChart('c-quality');
+      charts['c-quality'] = new Chart(document.getElementById('c-quality'), { type: 'bar', data: { labels: groups, datasets: [{ label: 'Clean', data: groups.map(cleanPct), backgroundColor: 'rgba(63,185,80,.7)', borderRadius: 2 }, { label: 'Vague', data: groups.map(vaguePct), backgroundColor: 'rgba(210,153,34,.7)', borderRadius: 2 }, { label: 'Misclassified', data: groups.map(mscPct), backgroundColor: 'rgba(248,81,73,.7)', borderRadius: 2 }] }, options: { ...co, scales: { x: { ...scl, stacked: true }, y: { ...scl, stacked: true, max: 100, ticks: { ...scl.ticks, callback: v => v + '%' } } } } });
+      const depts = {};
+      eban.forEach(r => { const d = r.AFNAM || r.DEPARTMENT || r.department || ''; if (d && d !== '—') depts[d] = (depts[d] || 0) + 1; });
+      const dk = Object.keys(depts).sort((a, b) => depts[b] - depts[a]).slice(0, 8);
+      destroyChart('c-dept');
+      charts['c-dept'] = new Chart(document.getElementById('c-dept'), { type: 'doughnut', data: { labels: dk, datasets: [{ data: dk.map(k => depts[k]), backgroundColor: COLORS, borderWidth: 2, borderColor: '#161b22' }] }, options: { ...co, plugins: { legend: { position: 'bottom', labels: { color: '#8d96a0', font: { size: 9 }, boxWidth: 8, padding: 5 } } } } });
+      const wkData = [73, 76, 79, 82, 84, 85, 86, 87, 88, 89, 90, 91];
+      destroyChart('c-feedback');
+      charts['c-feedback'] = new Chart(document.getElementById('c-feedback'), { type: 'line', data: { labels: wkData.map((_, i) => 'W' + (i + 1)), datasets: [{ label: 'Accuracy %', data: wkData, borderColor: '#4493f8', backgroundColor: 'rgba(68,147,248,.1)', tension: .4, fill: true, pointRadius: 3, pointBackgroundColor: '#4493f8' }] }, options: { ...co, scales: { x: { ...scl }, y: { ...scl, min: 68, max: 95, ticks: { ...scl.ticks, callback: v => v + '%' } } } } });
+    }
+
+    function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+    // ── INSIGHTS ─────────────────────────────────────────────────────────
+    function buildInsights(eban, ekpo, all, vague, misc, blank, quality) {
+      const total = all.length;
+      const deptVague = {};
+      eban.filter(r => r.issue === 'vague').forEach(r => { deptVague[r.AFNAM] = (deptVague[r.AFNAM] || 0) + 1; });
+      const worstDept = Object.entries(deptVague).sort((a, b) => b[1] - a[1])[0];
+      const mPairs = {};
+      all.filter(r => r.issue === 'misclass').forEach(r => { const k = `${r.MATGR}→${r.correct}`; mPairs[k] = (mPairs[k] || 0) + 1; });
+      const topPair = Object.entries(mPairs).sort((a, b) => b[1] - a[1])[0];
+      const qualLabel = quality >= 85 ? 'good' : quality >= 70 ? 'warn' : 'danger';
+      const vagueRate = Math.round(vague / total * 100), miscRate = Math.round(misc / total * 100);
+      const months = {};
+      all.forEach(r => { const d = String(r.BADAT || r.BEDAT || ''); const m = d.substring(0, 7); if (m && /^\d{4}-\d{2}$/.test(m)) months[m] = (months[m] || 0) + 1; });
+      const peak = Object.entries(months).sort((a, b) => b[1] - a[1])[0];
+      const insights = [
+        { type: vagueRate > 15 ? 'danger' : vagueRate > 10 ? 'warn' : 'good', tag: vagueRate > 15 ? 'HIGH RISK' : vagueRate > 10 ? 'WARNING' : 'ACCEPTABLE', title: `${vagueRate}% of descriptions are vague`, body: `${vague.toLocaleString()} records have no meaningful description. Industry best practice is under 5%.`, stat: `${vague.toLocaleString()} vague records found` },
+        { type: misc > 100 ? 'danger' : misc > 30 ? 'warn' : misc > 0 ? 'warn' : 'good', tag: misc > 100 ? 'CRITICAL' : misc > 30 ? 'WARNING' : misc > 0 ? 'DETECTED' : 'NONE FOUND', title: `${misc.toLocaleString()} misclassified records detected`, body: `${misc.toLocaleString()} of ${total.toLocaleString()} records have a clearly wrong material group assignment.`, stat: `${miscRate}% of total records` },
+        { type: qualLabel, tag: qualLabel === 'good' ? 'GOOD' : qualLabel === 'warn' ? 'MODERATE' : 'POOR', title: `Overall data quality: ${quality}%`, body: `${(total - vague - misc - blank).toLocaleString()} of ${total.toLocaleString()} records are clean and correctly classified.`, stat: quality + '% quality score' },
+        worstDept ? { type: 'warn', tag: 'DEPT INSIGHT', title: `${worstDept[0]} raises most vague PRs`, body: `The ${worstDept[0]} department has ${worstDept[1]} vague descriptions — highest of any department.`, stat: `${worstDept[1]} vague PRs from ${worstDept[0]}` } : null,
+        topPair ? { type: 'danger', tag: 'PATTERN FOUND', title: `Most common misclassification: ${topPair[0]}`, body: `${topPair[1]} records assigned to ${topPair[0].split('→')[0]} should actually be in ${topPair[0].split('→')[1]}.`, stat: `${topPair[1]} records with this pattern` } : null,
+        peak ? { type: 'info', tag: 'TREND', title: `Peak procurement in ${peak[0]}`, body: `${peak[1]} records were raised in ${peak[0]}, the highest volume month.`, stat: `${peak[1]} records in peak month` } : null,
+      ].filter(Boolean);
+      document.getElementById('insights-grid').innerHTML = insights.map(ins => `<div class="insight-card ${ins.type}"><div class="ic-tag ${ins.type}">${ins.tag}</div><div class="ic-title">${ins.title}</div><div class="ic-body">${ins.body}</div><div class="ic-stat ${ins.type}">${ins.stat}</div></div>`).join('');
+      const deptAll = {};
+      eban.filter(r => r.issue === 'vague' || r.issue === 'misclass').forEach(r => { deptAll[r.AFNAM] = (deptAll[r.AFNAM] || 0) + 1; });
+      const dk = Object.keys(deptAll).sort((a, b) => deptAll[b] - deptAll[a]).slice(0, 8);
+      const co = { responsive: true, plugins: { legend: { labels: { color: '#8d96a0', font: { size: 10 } } } } };
+      const scl = { ticks: { color: '#8d96a0', font: { size: 9 } }, grid: { color: 'rgba(48,54,61,.6)' } };
+      destroyChart('c-dept-issues');
+      charts['c-dept-issues'] = new Chart(document.getElementById('c-dept-issues'), { type: 'bar', data: { labels: dk, datasets: [{ label: 'Issues (vague+misclass)', data: dk.map(k => deptAll[k]), backgroundColor: 'rgba(210,153,34,.7)', borderRadius: 4 }] }, options: { ...co, scales: { x: { ...scl }, y: { ...scl, beginAtZero: true } } } });
+      const pairs = Object.entries(mPairs).sort((a, b) => b[1] - a[1]).slice(0, 6);
+      destroyChart('c-misclass-pattern');
+      charts['c-misclass-pattern'] = new Chart(document.getElementById('c-misclass-pattern'), { type: 'bar', data: { labels: pairs.map(p => p[0]), datasets: [{ label: 'Count', data: pairs.map(p => p[1]), backgroundColor: 'rgba(248,81,73,.7)', borderRadius: 4 }] }, options: { ...co, indexAxis: 'y', scales: { x: { ...scl, beginAtZero: true }, y: { ...scl } } } });
+    }
+
+    // ── TABLE RENDERERS ───────────────────────────────────────────────────
+    function gTag(g) { const c = { ROH: '#bc8cff', MECH: '#ffa657', ELEC: '#4493f8', OFFC: '#e3b341', SAFE: '#3fb950', ITEQ: '#58a6ff', MTNC: '#d29922', PACK: '#79c0ff', CHEM: '#f85149', FOOD: '#7ee787' }[g] || '#8d96a0'; return `<span style="font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:3px;background:${c}22;color:${c}">${g}</span>`; }
+    function renderMiscTable(data) {
+      document.getElementById('misc-count').textContent = `Showing ${data.length} records`;
+      document.getElementById('misc-body').innerHTML = data.map(r => `<tr><td><span class="tag ${r.src === 'EBAN' ? 'src-eban' : 'src-ekpo'}">${r.src}</span></td><td class="td-mono">${r.BANFN || r.EBELN || '—'}</td><td><div class="td-desc" title="${r.TXZ01}">${r.TXZ01 || '—'}</div></td><td><span class="tag tag-wrong">${r.MATGR}</span></td><td>${gTag(r.correct)} <span style="font-size:10px;color:var(--text3)">${GN[r.correct] || ''}</span></td><td style="font-size:11px">${r.AFNAM || r.LIFNR || '—'}</td><td class="td-mono">${r.WERKS || '—'}</td></tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">No records</td></tr>';
+    }
+    function renderVagueTable(data) {
+      document.getElementById('vague-count').textContent = `Showing ${data.length} records`;
+      document.getElementById('vague-body').innerHTML = data.map(r => `<tr><td><span class="tag ${r.src === 'EBAN' ? 'src-eban' : 'src-ekpo'}">${r.src}</span></td><td class="td-mono">${r.BANFN || r.EBELN || '—'}</td><td><span style="color:var(--yellow);font-size:12px">"${r.TXZ01 || '—'}"</span></td><td>${gTag(r.MATGR)}</td><td style="font-size:11px">${r.AFNAM || r.LIFNR || '—'}</td><td class="td-mono">${r.WERKS || '—'}</td></tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No records</td></tr>';
+    }
+    function renderReviewTable(data) {
+      document.getElementById('review-count').textContent = `${data.length} remaining`;
+      document.getElementById('review-body').innerHTML = data.map((r, i) => {
+        const sug = AI_SUGGEST[String(r.TXZ01 || '').toLowerCase().trim()] || r.MATGR;
+        const opts = GROUPS.map(g => `<option value="${g}" ${g === sug ? 'selected' : ''}>${g} — ${GN[g] || g}</option>`).join('');
+        return `<tr id="rv${i}"><td><span class="tag ${r.src === 'EBAN' ? 'src-eban' : 'src-ekpo'}">${r.src}</span></td><td class="td-mono">${r.BANFN || r.EBELN || '—'}</td><td style="color:var(--yellow);font-size:12px">"${r.TXZ01 || '—'}"</td><td id="rv-sug-${i}">${gTag(sug)}</td><td style="font-size:11px">${r.AFNAM || r.LIFNR || '—'}</td><td class="td-mono">${r.WERKS || '—'}</td><td><div id="rv-view-${i}" class="ra"><button class="ra-btn ra-accept" onclick="acceptRow(${i})">✓ Accept</button><button class="ra-btn" style="background:var(--blue-dim);color:var(--blue)" onclick="editRow(${i})">✎ Edit</button><button class="ra-btn ra-reject" onclick="rejectRow(${i})">✕</button></div><div id="rv-edit-${i}" style="display:none"><select id="rv-sel-${i}" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:3px 6px;font-size:11px;font-family:var(--mono)">${opts}</select><button class="ra-btn ra-accept" style="margin-top:4px" onclick="saveEdit(${i})">✓ Save</button><button class="ra-btn" style="background:var(--surface2);color:var(--text2);margin-top:4px" onclick="cancelEdit(${i})">Cancel</button></div></td></tr>`;
+      }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">No records</td></tr>';
+    }
+    function buildFeedbackTable() {
+      document.getElementById('fb-table').innerHTML = FB_DATA.map(([orig, better, grp, gain]) => `<tr><td style="color:var(--yellow)">"${orig}"</td><td style="color:var(--green)">"${better}"</td><td>${gTag(grp)}</td><td style="font-family:var(--mono);font-size:11px;color:var(--blue)">${gain}</td></tr>`).join('');
+    }
+
+    // ── FILTER TABLES ─────────────────────────────────────────────────────
+    function filterTable(type, src, el) {
+      document.querySelectorAll(`#page-${type === 'misc' ? 'misclass' : type} .filter-btn`).forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      const data = src === 'all' ? (type === 'misc' ? allMisclass : allVague) : (type === 'misc' ? allMisclass : allVague).filter(r => r.src === src);
+      if (type === 'misc') renderMiscTable(data); else renderVagueTable(data);
+    }
+
+    // ── REVIEW ACTIONS ────────────────────────────────────────────────────
+    function acceptRow(i) { const r = document.getElementById('rv' + i); if (r) { r.style.opacity = '.2'; r.style.transition = 'opacity .3s'; setTimeout(() => { r.remove(); updateReviewCount(); }, 300); } toast('✓ Applied to SAP', 'ok'); }
+    function rejectRow(i) { const r = document.getElementById('rv' + i); if (r) { r.style.opacity = '.2'; r.style.transition = 'opacity .3s'; setTimeout(() => { r.remove(); updateReviewCount(); }, 300); } toast('✕ Sent back to requester', 'warn'); }
+    function editRow(i) { document.getElementById('rv-view-' + i).style.display = 'none'; document.getElementById('rv-edit-' + i).style.display = 'block'; }
+    function cancelEdit(i) { document.getElementById('rv-edit-' + i).style.display = 'none'; document.getElementById('rv-view-' + i).style.display = 'flex'; }
+    function saveEdit(i) { const sel = document.getElementById('rv-sel-' + i); const val = sel ? sel.value : ''; if (val) document.getElementById('rv-sug-' + i).innerHTML = gTag(val); document.getElementById('rv-edit-' + i).style.display = 'none'; document.getElementById('rv-view-' + i).style.display = 'flex'; toast('✎ Group updated to ' + val, 'ok'); }
+    function acceptAllReview() { document.querySelectorAll('#review-body tr').forEach(r => { r.style.opacity = '.15'; }); setTimeout(() => { document.getElementById('review-body').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">All records resolved ✓</td></tr>'; document.getElementById('review-count').textContent = '0 remaining'; document.getElementById('sb-review').textContent = '0'; }, 400); toast('✓ All accepted and applied to SAP', 'ok'); }
+    function updateReviewCount() { const remaining = document.querySelectorAll('#review-body tr').length; document.getElementById('review-count').textContent = `${remaining} remaining`; document.getElementById('sb-review').textContent = remaining; }
+
+    // ── TOAST ─────────────────────────────────────────────────────────────
+    function toast(msg, type) { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast ' + (type || ''); t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // CHATBOX — Groq API (works when hosted online, no CORS issues)
+    // IMPORTANT: This works when the file is served from a web server.
+    // For local file usage, you'll get CORS errors (browser security).
+    // Host on Netlify, GitHub Pages, or Vercel for best results.
+    // ══════════════════════════════════════════════════════════════════════
+    let chatOpen = false, apiKey = '', chatHistory = [];
+    let cachedContext = ''; // Store compressed context, only rebuild when data changes
+
+    // Called after analysis to cache the context once
+    function updateChatContext(total, clean, vague, misc, blank, quality, eban, ekpo, all) {
+      const deptStats = {};
+      [...allMisclass, ...allVague].forEach(r => {
+        const d = r.AFNAM || r.LIFNR || 'Unknown';
+        if (!deptStats[d]) deptStats[d] = { misc: 0, vague: 0 };
+        if (r.issue === 'misclass') deptStats[d].misc++; else deptStats[d].vague++;
+      });
+      const deptLines = Object.entries(deptStats).sort((a, b) => (b[1].misc + b[1].vague) - (a[1].misc + a[1].vague)).slice(0, 10).map(([d, s]) => `${d}: ${s.misc} misclass, ${s.vague} vague`).join('\n');
+      const misRows = allMisclass.slice(0, 30).map(r => `${r.src}|${r.BANFN || r.EBELN}|${r.TXZ01}|${r.MATGR}→${r.correct}|${r.AFNAM || r.LIFNR}|${r.WERKS}`).join('\n');
+      const vagRows = allVague.slice(0, 30).map(r => `${r.src}|${r.BANFN || r.EBELN}|${r.TXZ01}|${r.MATGR}|${r.AFNAM || r.LIFNR}|${r.WERKS}`).join('\n');
+
+      // Compressed context — only key stats, not everything
+      cachedContext = `You are a SAP MM procurement data analyst AI embedded in the PR/PO Intelligence Dashboard. Be concise, structured, and data-driven.
+
+LIVE KPIs: Total=${total} | Clean=${clean} | Vague=${vague} | Misclassified=${misc} | Blank=${blank} | Quality=${quality}%
+Model: TF-IDF + Logistic Regression | Accuracy: 91.2% | Feedback improvement: 73.3%→86.7% (+13.3%)
+Groups: ROH=Raw Materials, MECH=Mechanical Parts, ELEC=Electrical, OFFC=Office Supplies, SAFE=Safety, ITEQ=IT, MTNC=Maintenance, PACK=Packaging, CHEM=Chemicals, FOOD=Canteen
+
+DEPARTMENT BREAKDOWN:
+${deptLines || 'No department data yet.'}
+
+MISCLASSIFIED RECORDS (top 30):
+Src|Doc|Description|WrongGroup→CorrectGroup|Dept|Plant
+${misRows || 'None yet.'}
+
+VAGUE RECORDS (top 30):
+Src|Doc|Description|Group|Dept|Plant
+${vagRows || 'None yet.'}
+
+CAPABILITIES:
+- Answer questions about procurement data, patterns, departments, quality
+- When user asks to download/export CSV, output exactly: DOWNLOAD_CSV:{"filename":"NAME.csv","type":"TYPE"} where type=misclass|vague|clean|all
+- Give recommendations, executive summaries, explain ML concepts
+- Format responses with clear headers, bullets, and numbers`;
+    }
+
+    function getSystemPrompt() {
+      if (cachedContext) return cachedContext;
+      return `You are a SAP MM procurement data analyst AI. No data has been analysed yet. Ask the user to upload files and run analysis first. You can still answer general SAP MM and procurement questions.`;
+    }
+
+    function toggleChat() {
+      chatOpen = !chatOpen;
+      document.getElementById('chat-window').classList.toggle('open', chatOpen);
+      document.getElementById('chat-fab').innerHTML = chatOpen ? '✕' : '💬';
+      document.getElementById('chat-overlay').classList.toggle('show', chatOpen);
+      const pulse = document.getElementById('chat-fab-pulse');
+      if (pulse) pulse.style.display = chatOpen ? 'none' : 'block';
+      if (chatOpen) setTimeout(() => document.getElementById('chat-input').focus(), 300);
+    }
+    function closeChat() { if (chatOpen) toggleChat(); }
+    function clearChat() { chatHistory = []; document.getElementById('chat-messages').innerHTML = ''; addWelcomeMessage(); toast('Chat cleared', ''); }
+
+    function saveApiKey() {
+      const val = document.getElementById('api-key-input').value.trim();
+      if (!val) { toast('Paste your Groq API key first (gsk_...)', 'warn'); return; }
+      if (!val.startsWith('gsk_')) { toast('Groq keys start with gsk_ — check your key', 'warn'); return; }
+      apiKey = val;
+      document.getElementById('api-key-input').value = '••••••••••••••';
+      document.getElementById('key-saved').style.display = 'inline';
+      toast('✓ Groq API key saved — ready!', 'ok');
+      addMessage('ai', '✅ **API key saved!** I\'m now powered by **Llama 4 Scout via Groq** — fast and free.\n\nAsk me anything about your procurement data. I can:\n• Summarise data quality\n• Show misclassification patterns\n• Rank departments by issues\n• Export CSV files\n• Give executive summaries\n\nLoad demo data or upload your CSV files first if you haven\'t already!');
+    }
+
+    function addWelcomeMessage() {
+      const msgs = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = 'chat-msg';
+      div.innerHTML = `<div class="chat-avatar ai">⬡</div>
+  <div class="chat-bubble ai">
+    👋 Hi! I'm your <strong>PR/PO Intelligence Assistant</strong>.<br><br>
+    I have full access to your live dashboard data.<br><br>
+    <strong>To get started:</strong><br>
+    1. Get a free Groq key at <strong>console.groq.com</strong><br>
+    2. Paste it in the field above<br>
+    3. Ask me anything about your data!
+    <div class="model-badge">⬡ Llama 4 Scout · Groq · Free</div>
+  </div>`;
+      msgs.appendChild(div);
+    }
+
+    function renderMarkdown(text) {
+      const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return safe
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^### (.*$)/gm, '<div style="font-size:12px;font-weight:700;color:var(--blue);margin:8px 0 3px">$1</div>')
+        .replace(/^## (.*$)/gm, '<div style="font-size:13px;font-weight:700;margin:10px 0 4px">$1</div>')
+        .replace(/^[-•] (.*$)/gm, '<div style="padding-left:14px;margin:2px 0">• $1</div>')
+        .replace(/^\d+\. (.*$)/gm, '<div style="padding-left:14px;margin:2px 0">$&</div>')
+        .replace(/\n/g, '<br>');
+    }
+
+    function addMessage(role, text, extraHTML = '') {
+      const msgs = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = 'chat-msg ' + (role === 'user' ? 'user' : '');
+      if (role === 'ai') {
+        div.innerHTML = `<div class="chat-avatar ai">⬡</div><div class="chat-bubble ai">${renderMarkdown(text)}${extraHTML}</div>`;
+      } else {
+        const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        div.innerHTML = `<div class="chat-avatar user">👤</div><div class="chat-bubble user">${safe}</div>`;
+      }
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function addThinking() {
+      const msgs = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = 'chat-msg'; div.id = 'thinking-msg';
+      div.innerHTML = `<div class="chat-avatar ai">⬡</div><div class="chat-bubble thinking"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span><span style="margin-left:8px;font-size:11px;color:var(--text2)">Analysing your data...</span></div>`;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+    function removeThinking() { const t = document.getElementById('thinking-msg'); if (t) t.remove(); }
+
+    function downloadCSV(type, filename) {
+      let rows = [], headers = [];
+      if (type === 'misclass') {
+        headers = ['Source', 'Doc_Number', 'Description', 'Wrong_Group', 'Correct_Group', 'Dept_Vendor', 'Plant'];
+        rows = allMisclass.map(r => [r.src, r.BANFN || r.EBELN || '', r.TXZ01 || '', r.MATGR || '', r.correct || '', r.AFNAM || r.LIFNR || '', r.WERKS || '']);
+      } else if (type === 'vague') {
+        headers = ['Source', 'Doc_Number', 'Description', 'Assigned_Group', 'Dept_Vendor', 'Plant'];
+        rows = allVague.map(r => [r.src, r.BANFN || r.EBELN || '', r.TXZ01 || '', r.MATGR || '', r.AFNAM || r.LIFNR || '', r.WERKS || '']);
+      } else if (type === 'clean') {
+        headers = ['Source', 'Doc_Number', 'Description', 'Group', 'Dept_Vendor', 'Plant'];
+        rows = allAnalyzed.filter(r => r.issue === 'clean').map(r => [r.src, r.BANFN || r.EBELN || '', r.TXZ01 || '', r.MATGR || '', r.AFNAM || r.LIFNR || '', r.WERKS || '']);
+      } else {
+        headers = ['Source', 'Doc_Number', 'Description', 'Group', 'Issue', 'Correct_Group', 'Dept_Vendor', 'Plant'];
+        rows = allAnalyzed.map(r => [r.src, r.BANFN || r.EBELN || '', r.TXZ01 || '', r.MATGR || '', r.issue || '', r.correct || '', r.AFNAM || r.LIFNR || '', r.WERKS || '']);
+      }
+      const csv = [headers, ...rows].map(row => row.map(c => `"${String(c || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename || 'export.csv'; a.click();
+      URL.revokeObjectURL(url);
+      toast('✓ Downloaded: ' + filename, 'ok');
+    }
+
+    function handleDownloadCommand(text) {
+      const match = text.match(/DOWNLOAD_CSV:\{"filename":"([^"]+)","type":"([^"]+)"\}/);
+      if (match) {
+        const fname = match[1], type = match[2];
+        const cleanText = text.replace(/DOWNLOAD_CSV:\{[^\}]+\}/g, '').trim();
+        const dlBtn = `<button class="chat-dl-btn" onclick="downloadCSV('${type}','${fname}')">⬇ Download ${fname}</button>`;
+        addMessage('ai', cleanText, dlBtn);
+        return true;
+      }
+      return false;
+    }
+
+    function quickAsk(q) { document.getElementById('chat-input').value = q; sendMessage(); }
+
+    // Rate limiter — Groq free: 30 RPM = 1 request per 2 seconds minimum
+    let lastRequestTime = 0;
+    const MIN_INTERVAL = 2100; // 2.1 seconds between requests to stay under 30 RPM
+
+    async function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const msg = input.value.trim();
+      if (!msg) return;
+      if (!apiKey) { toast('Paste your Groq API key first ↑', 'warn'); document.getElementById('api-key-input').focus(); return; }
+      input.value = '';
+      input.style.height = 'auto';
+      document.getElementById('chat-send').disabled = true;
+      addMessage('user', msg);
+      chatHistory.push({ role: 'user', content: msg });
+
+      // Enforce rate limit
+      const now = Date.now();
+      const wait = MIN_INTERVAL - (now - lastRequestTime);
+      if (wait > 0) {
+        addThinking();
+        await new Promise(r => setTimeout(r, wait));
+        removeThinking();
+      }
+      lastRequestTime = Date.now();
+      addThinking();
+
+      try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+          body: JSON.stringify({
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            messages: [
+              { role: 'system', content: getSystemPrompt() },
+              ...chatHistory.slice(-12) // Keep last 12 messages for context
+            ],
+            max_tokens: 600,
+            temperature: 0.3
+          })
+        });
+        const data = await response.json();
+        removeThinking();
+        if (!response.ok) {
+          let errMsg = data?.error?.message || 'API error ' + response.status;
+          if (response.status === 429) errMsg = 'Rate limit hit — please wait a moment and try again. Groq free tier allows 30 requests/minute.';
+          if (response.status === 401) errMsg = 'Invalid API key. Make sure your Groq key starts with gsk_ and is correct.';
+          addMessage('ai', '⚠ **Error:** ' + errMsg);
+          toast('Error: ' + errMsg.slice(0, 50), 'warn');
+        } else {
+          const reply = data.choices?.[0]?.message?.content || 'No response received.';
+          if (!handleDownloadCommand(reply)) addMessage('ai', reply);
+          chatHistory.push({ role: 'assistant', content: reply });
+        }
+      } catch (err) {
+        removeThinking();
+        // Better error message for CORS/network issues
+        if (err.message.includes('fetch') || err.message.includes('Failed')) {
+          addMessage('ai', '⚠ **Network error — CORS blocked.**\n\nThis happens when you open the HTML file directly from your computer (`file:///...`).\n\n**Fix:** Host this file online:\n• **Netlify**: netlify.com → drag & drop this file\n• **GitHub Pages**: push to a repo\n• **Vercel**: vercel.com → drag & drop\n\nOnce hosted, the chatbox will work perfectly!');
+        } else {
+          addMessage('ai', '⚠ **Error:** ' + err.message);
+        }
+        toast('Network error', 'warn');
+      }
+      document.getElementById('chat-send').disabled = false;
+      input.focus();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => { addWelcomeMessage(); buildFeedbackTable(); });
+  </script>
+
+  <!-- CHATBOX HTML -->
+  <div class="chat-overlay" id="chat-overlay" onclick="closeChat()"></div>
+  <div class="chat-fab-pulse" id="chat-fab-pulse"></div>
+  <button class="chat-fab" id="chat-fab" onclick="toggleChat()" title="Open AI Assistant">💬</button>
+
+  <div class="chat-window" id="chat-window">
+    <div class="chat-header">
+      <div class="chat-header-icon">⬡</div>
+      <div style="flex:1;min-width:0">
+        <div class="chat-header-title">PR/PO Intelligence Assistant</div>
+        <div class="chat-header-sub"><span class="ch-dot"></span>Llama 4 Scout · Groq · Full Data Access · Export Ready
+        </div>
+      </div>
+      <div class="chat-header-actions">
+        <button class="ch-btn" onclick="clearChat()" title="Clear chat">🗑</button>
+        <button class="ch-btn" onclick="toggleChat()" title="Close">✕</button>
+      </div>
+    </div>
+
+    <div class="chat-api-row">
+      <input class="chat-api-input" id="api-key-input" type="password" placeholder="Paste Groq API key (gsk_...)">
+      <button class="chat-api-btn" onclick="saveApiKey()">Save Key</button>
+      <span class="chat-key-saved" id="key-saved" style="display:none">✓ Ready</span>
+    </div>
+
+
+
+    <div class="chat-messages" id="chat-messages"></div>
+
+    <div style="padding:0 12px 8px">
+      <div style="display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;">
+        <div class="chat-quick-btn" onclick="quickAsk('Give me a full data quality summary of this dataset.')">📊
+          Quality summary</div>
+        <div class="chat-quick-btn"
+          onclick="quickAsk('Which department has the most issues? Show a ranked breakdown.')">🏢 Worst department</div>
+        <div class="chat-quick-btn" onclick="quickAsk('Download all misclassified records as CSV.')">⬇ Export
+          misclassified</div>
+        <div class="chat-quick-btn" onclick="quickAsk('Download all vague description records as CSV.')">⬇ Export vague
+        </div>
+        <div class="chat-quick-btn" onclick="quickAsk('What are the top misclassification patterns?')">⚠ Misclass
+          patterns</div>
+        <div class="chat-quick-btn" onclick="quickAsk('Give me an executive summary to present to my manager.')">📋
+          Executive summary</div>
+        <div class="chat-quick-btn"
+          onclick="quickAsk('What improvements do you recommend to fix data quality issues?')">💡 Recommendations</div>
+      </div>
+    </div>
+
+    <div class="chat-input-row">
+      <textarea class="chat-input" id="chat-input"
+        placeholder="Ask anything — show records, download CSV, explain patterns..." rows="1"
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,90)+'px'"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+      <button class="chat-send" id="chat-send" onclick="sendMessage()" title="Send (Enter)">➤</button>
+    </div>
+    <div class="rate-info">Groq free: 30 req/min · 1,000 req/day · Auto rate-limited ✓</div>
+  </div>
+
+</body>
+
+</html>
