@@ -1450,7 +1450,7 @@
       </div>
       <div class="sb-model">
         <div class="sb-model-dot"></div>
-        <div class="sb-model-text">TF-IDF + LogReg · 91.2%</div>
+        <div class="sb-model-text">TF-IDF + LogReg · 91.2% · LLM: 70B</div>
       </div>
     </div>
     <nav class="sb-nav">
@@ -2225,7 +2225,7 @@ CAPABILITIES:
       document.getElementById('api-key-input').value = '••••••••••••••';
       document.getElementById('key-saved').style.display = 'inline';
       toast('✓ Groq API key saved — ready!', 'ok');
-      addMessage('ai', '✅ **API key saved!** I\'m now powered by **Llama 4 Scout via Groq** — fast and free.\n\nAsk me anything about your procurement data. I can:\n• Summarise data quality\n• Show misclassification patterns\n• Rank departments by issues\n• Export CSV files\n• Give executive summaries\n\nLoad demo data or upload your CSV files first if you haven\'t already!');
+      addMessage('ai', '✅ **API key saved!** I\'m now powered by **Llama 3.3 70B via Groq** — fast and free.\n\nAsk me anything about your procurement data. I can:\n• Summarise data quality\n• Show misclassification patterns\n• Rank departments by issues\n• Export CSV files\n• Give executive summaries\n\nLoad demo data or upload your CSV files first if you haven\'t already!');
     }
 
     function addWelcomeMessage() {
@@ -2237,10 +2237,10 @@ CAPABILITIES:
     👋 Hi! I'm your <strong>PR/PO Intelligence Assistant</strong>.<br><br>
     I have full access to your live dashboard data.<br><br>
     <strong>To get started:</strong><br>
-    1. Get a free Groq key at <strong>console.groq.com</strong><br>
-    2. Paste it in the field above<br>
-    3. Ask me anything about your data!
-    <div class="model-badge">⬡ Llama 4 Scout · Groq · Free</div>
+    1. Load demo data or upload your CSV files<br>
+    2. Click <strong>Analyse Data</strong><br>
+    3. Ask me anything about your procurement data!
+    <div class="model-badge">⬡ Llama 3.3 70B · Groq · Server-Side</div>
   </div>`;
       msgs.appendChild(div);
     }
@@ -2320,67 +2320,45 @@ CAPABILITIES:
 
     function quickAsk(q) { document.getElementById('chat-input').value = q; sendMessage(); }
 
-    // Rate limiter — Groq free: 30 RPM = 1 request per 2 seconds minimum
     let lastRequestTime = 0;
-    const MIN_INTERVAL = 2100; // 2.1 seconds between requests to stay under 30 RPM
 
     async function sendMessage() {
       const input = document.getElementById('chat-input');
       const msg = input.value.trim();
       if (!msg) return;
-      if (!apiKey) { toast('Paste your Groq API key first ↑', 'warn'); document.getElementById('api-key-input').focus(); return; }
       input.value = '';
       input.style.height = 'auto';
       document.getElementById('chat-send').disabled = true;
       addMessage('user', msg);
       chatHistory.push({ role: 'user', content: msg });
 
-      // Enforce rate limit
-      const now = Date.now();
-      const wait = MIN_INTERVAL - (now - lastRequestTime);
-      if (wait > 0) {
-        addThinking();
-        await new Promise(r => setTimeout(r, wait));
-        removeThinking();
-      }
       lastRequestTime = Date.now();
       addThinking();
 
       try {
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        const response = await fetch('/api/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-            messages: [
-              { role: 'system', content: getSystemPrompt() },
-              ...chatHistory.slice(-12) // Keep last 12 messages for context
-            ],
-            max_tokens: 600,
-            temperature: 0.3
+            system: getSystemPrompt(),
+            messages: chatHistory.slice(-14),
+            max_tokens: 800
           })
         });
         const data = await response.json();
         removeThinking();
         if (!response.ok) {
-          let errMsg = data?.error?.message || 'API error ' + response.status;
-          if (response.status === 429) errMsg = 'Rate limit hit — please wait a moment and try again. Groq free tier allows 30 requests/minute.';
-          if (response.status === 401) errMsg = 'Invalid API key. Make sure your Groq key starts with gsk_ and is correct.';
+          const errMsg = data?.error || 'Server error ' + response.status;
           addMessage('ai', '⚠ **Error:** ' + errMsg);
-          toast('Error: ' + errMsg.slice(0, 50), 'warn');
+          toast('Error: ' + String(errMsg).slice(0, 50), 'warn');
         } else {
-          const reply = data.choices?.[0]?.message?.content || 'No response received.';
+          const reply = data.text || 'No response received.';
           if (!handleDownloadCommand(reply)) addMessage('ai', reply);
           chatHistory.push({ role: 'assistant', content: reply });
         }
       } catch (err) {
         removeThinking();
-        // Better error message for CORS/network issues
-        if (err.message.includes('fetch') || err.message.includes('Failed')) {
-          addMessage('ai', '⚠ **Network error — CORS blocked.**\n\nThis happens when you open the HTML file directly from your computer (`file:///...`).\n\n**Fix:** Host this file online:\n• **Netlify**: netlify.com → drag & drop this file\n• **GitHub Pages**: push to a repo\n• **Vercel**: vercel.com → drag & drop\n\nOnce hosted, the chatbox will work perfectly!');
-        } else {
-          addMessage('ai', '⚠ **Error:** ' + err.message);
-        }
+        addMessage('ai', '⚠ **Error:** ' + err.message);
         toast('Network error', 'warn');
       }
       document.getElementById('chat-send').disabled = false;
@@ -2409,10 +2387,8 @@ CAPABILITIES:
       </div>
     </div>
 
-    <div class="chat-api-row">
-      <input class="chat-api-input" id="api-key-input" type="password" placeholder="Paste Groq API key (gsk_...)">
-      <button class="chat-api-btn" onclick="saveApiKey()">Save Key</button>
-      <span class="chat-key-saved" id="key-saved" style="display:none">✓ Ready</span>
+    <div style="padding:6px 14px;background:var(--bg);border-bottom:1px solid var(--border);font-size:10px;color:var(--green);font-family:var(--mono);text-align:center;">
+      ✓ Powered by Llama 3.3 70B · Server-Side · No API Key Needed
     </div>
 
 
@@ -2445,7 +2421,7 @@ CAPABILITIES:
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
       <button class="chat-send" id="chat-send" onclick="sendMessage()" title="Send (Enter)">➤</button>
     </div>
-    <div class="rate-info">Groq free: 30 req/min · 1,000 req/day · Auto rate-limited ✓</div>
+    <div class="rate-info">Llama 3.3 70B · Groq · Hosted on server ✓</div>
   </div>
 
 </body>
