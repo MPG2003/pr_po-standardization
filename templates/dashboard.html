@@ -2046,6 +2046,7 @@
       // Update chat context after analysis
       updateChatContext(total, clean, vague, misc, blank, quality, eban, ekpo, all);
       toast(`✓ Analysis complete — ${total.toLocaleString()} records processed`, 'ok');
+      addMessage('ai', '✅ **Analysis complete!** I now have full access to your data.\n\nI can help you with:\n• Data quality summary\n• Misclassification patterns\n• Department breakdown\n• Export CSV files\n• Executive summary for your manager\n\nWhat would you like to know?');
     }
 
     // ── CHARTS ───────────────────────────────────────────────────────────
@@ -2292,35 +2293,32 @@ CAPABILITIES:
     }
     function closeChat() { if (chatOpen) toggleChat(); }
     function clearChat() { chatHistory = []; document.getElementById('chat-messages').innerHTML = ''; addWelcomeMessage(); toast('Chat cleared', ''); }
-
     function saveApiKey() {
-      const val = document.getElementById('api-key-input').value.trim();
-      if (!val) { toast('Paste your Groq API key first (gsk_...)', 'warn'); return; }
-      if (!val.startsWith('gsk_')) { toast('Groq keys start with gsk_ — check your key', 'warn'); return; }
-      apiKey = val;
-      document.getElementById('api-key-input').value = '••••••••••••••';
-      document.getElementById('key-saved').style.display = 'inline';
-      toast('✓ Groq API key saved — ready!', 'ok');
-      addMessage('ai', '✅ **API key saved!** I\'m now powered by **Llama 4 Scout via Groq** — fast and free.\n\nAsk me anything about your procurement data. I can:\n• Summarise data quality\n• Show misclassification patterns\n• Rank departments by issues\n• Export CSV files\n• Give executive summaries\n\nLoad demo data or upload your CSV files first if you haven\'t already!');
-    }
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val) { toast('Paste your Groq API key first (gsk_...)', 'warn'); return; }
+  if (!val.startsWith('gsk_')) { toast('Groq keys start with gsk_ — check your key', 'warn'); return; }
+  apiKey = val;
+  document.getElementById('api-key-input').value = '••••••••••••••';
+  document.getElementById('key-saved').style.display = 'inline';
+  toast('✓ Groq API key saved — ready!', 'ok');
+  addMessage('ai', '✅ **API key saved!** Ready to go.\n\nUpload your EBAN and EKPO CSV files, click **Analyse Data**, then ask me anything about your procurement data.');
+}
 
-    function addWelcomeMessage() {
-      const msgs = document.getElementById('chat-messages');
-      const div = document.createElement('div');
-      div.className = 'chat-msg';
-      div.innerHTML = `<div class="chat-avatar ai">⬡</div>
-  <div class="chat-bubble ai">
-    👋 Hi! I'm your <strong>PR/PO Intelligence Assistant</strong>.<br><br>
-    I have full access to your live dashboard data.<br><br>
-    <strong>To get started:</strong><br>
-    1. Load demo data or upload your CSV files<br>
-    2. Click <strong>Analyse Data</strong><br>
-    3. Ask me anything about your procurement data!
-    <div class="model-badge">⬡ Llama 3.3 70B · Groq · Server-Side</div>
-  </div>`;
-      msgs.appendChild(div);
-    }
-
+   function addWelcomeMessage() {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<div class="chat-avatar ai">⬡</div>
+<div class="chat-bubble ai">
+  👋 Hi! I'm your <strong>PR/PO Intelligence Assistant</strong>.<br><br>
+  <strong>To get started:</strong><br>
+  1. Upload your EBAN and EKPO CSV files<br>
+  2. Click <strong>Analyse Data</strong><br>
+  3. Come back here and ask me anything!
+  <div class="model-badge">⬡ Llama 3.3 70B · Groq · Server-Side</div>
+</div>`;
+  msgs.appendChild(div);
+}
     function renderMarkdown(text) {
       const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       return safe
