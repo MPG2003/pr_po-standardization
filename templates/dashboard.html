@@ -2027,8 +2027,8 @@
       document.getElementById('v-total').textContent = vague;
       document.getElementById('v-eban').textContent = eban.filter(r => r.issue === 'vague').length;
       document.getElementById('v-ekpo').textContent = ekpo.filter(r => r.issue === 'vague').length;
-      allMisclass = all.filter(r => r.issue === 'misclass').slice(0, 100);
-      allVague = all.filter(r => r.issue === 'vague').slice(0, 100);
+      allMisclass = all.filter(r => r.issue === 'misclass');
+      allVague = all.filter(r => r.issue === 'vague');
       allReview = all.filter(r => r.issue === 'vague').slice(0, 30);
       buildCharts(eban, ekpo, all);
       buildInsights(eban, ekpo, all, vague, misc, blank, quality);
@@ -2165,39 +2165,115 @@
 
     // Called after analysis to cache the context once
     function updateChatContext(total, clean, vague, misc, blank, quality, eban, ekpo, all) {
+      // Build dept stats from ALL records (not sliced)
       const deptStats = {};
-      [...allMisclass, ...allVague].forEach(r => {
+      all.filter(r => r.issue === 'misclass' || r.issue === 'vague').forEach(r => {
         const d = r.AFNAM || r.LIFNR || 'Unknown';
-        if (!deptStats[d]) deptStats[d] = { misc: 0, vague: 0 };
+        if (!deptStats[d]) deptStats[d] = { misc: 0, vague: 0, total: 0 };
         if (r.issue === 'misclass') deptStats[d].misc++; else deptStats[d].vague++;
+        deptStats[d].total++;
       });
-      const deptLines = Object.entries(deptStats).sort((a, b) => (b[1].misc + b[1].vague) - (a[1].misc + a[1].vague)).slice(0, 10).map(([d, s]) => `${d}: ${s.misc} misclass, ${s.vague} vague`).join('\n');
-      const misRows = allMisclass.slice(0, 30).map(r => `${r.src}|${r.BANFN || r.EBELN}|${r.TXZ01}|${r.MATGR}→${r.correct}|${r.AFNAM || r.LIFNR}|${r.WERKS}`).join('\n');
-      const vagRows = allVague.slice(0, 30).map(r => `${r.src}|${r.BANFN || r.EBELN}|${r.TXZ01}|${r.MATGR}|${r.AFNAM || r.LIFNR}|${r.WERKS}`).join('\n');
+      const deptLines = Object.entries(deptStats)
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 15)
+        .map(([d, s]) => `${d}: ${s.misc} misclassified, ${s.vague} vague (total issues: ${s.total})`)
+        .join('\n');
 
-      // Compressed context — only key stats, not everything
-      cachedContext = `You are a SAP MM procurement data analyst AI embedded in the PR/PO Intelligence Dashboard. Be concise, structured, and data-driven.
+      // Group breakdown — full counts
+      const groupStats = {};
+      GROUPS.forEach(g => {
+        const grpAll = all.filter(r => r.MATGR === g);
+        groupStats[g] = {
+          total: grpAll.length,
+          clean: grpAll.filter(r => r.issue === 'clean').length,
+          vague: grpAll.filter(r => r.issue === 'vague').length,
+          misc: grpAll.filter(r => r.issue === 'misclass').length,
+        };
+      });
+      const groupLines = Object.entries(groupStats)
+        .map(([g, s]) => `${g}(${GN[g]}): total=${s.total} clean=${s.clean} vague=${s.vague} misclass=${s.misc}`)
+        .join('\n');
 
-LIVE KPIs: Total=${total} | Clean=${clean} | Vague=${vague} | Misclassified=${misc} | Blank=${blank} | Quality=${quality}%
-Model: TF-IDF + Logistic Regression | Accuracy: 91.2% | Feedback improvement: 73.3%→86.7% (+13.3%)
-Groups: ROH=Raw Materials, MECH=Mechanical Parts, ELEC=Electrical, OFFC=Office Supplies, SAFE=Safety, ITEQ=IT, MTNC=Maintenance, PACK=Packaging, CHEM=Chemicals, FOOD=Canteen
+      // Misclass patterns — full count
+      const mPairs = {};
+      allMisclass.forEach(r => { const k = `${r.MATGR}→${r.correct}`; mPairs[k] = (mPairs[k] || 0) + 1; });
+      const patternLines = Object.entries(mPairs)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([p, c]) => `${p}: ${c} records`)
+        .join('\n');
 
-DEPARTMENT BREAKDOWN:
-${deptLines || 'No department data yet.'}
+      // Sample records for AI to reason about (top 50 each)
+      const misRows = allMisclass.slice(0, 50).map(r => `${r.src}|${r.BANFN || r.EBELN}|${r.TXZ01}|${r.MATGR}→${r.correct}|${r.AFNAM || r.LIFNR}|${r.WERKS}`).join('\n');
+      const vagRows = allVague.slice(0, 50).map(r => `${r.src}|${r.BANFN || r.EBELN}|${r.TXZ01}|${r.MATGR}|${r.AFNAM || r.LIFNR}|${r.WERKS}`).join('\n');
 
-MISCLASSIFIED RECORDS (top 30):
+      // EBAN vs EKPO split
+      const ebanTotal = eban.length, ekpoTotal = ekpo.length;
+      const ebanClean = eban.filter(r => r.issue === 'clean').length;
+      const ekpoClean = ekpo.filter(r => r.issue === 'clean').length;
+      const ebanVague = eban.filter(r => r.issue === 'vague').length;
+      const ekpoVague = ekpo.filter(r => r.issue === 'vague').length;
+      const ebanMisc = eban.filter(r => r.issue === 'misclass').length;
+      const ekpoMisc = ekpo.filter(r => r.issue === 'misclass').length;
+
+      cachedContext = `You are an expert SAP MM procurement data analyst AI embedded in the PR/PO Intelligence Dashboard.
+
+CRITICAL RULES:
+- The KPI numbers below are the GROUND TRUTH — always use these exact numbers when answering
+- Do NOT estimate or recalculate from sample records — trust the KPIs
+- Be concise, structured, data-driven and specific
+- Always cite exact numbers in your answers
+
+═══════════════════════════════════════
+LIVE KPIs (EXACT — DO NOT DEVIATE)
+═══════════════════════════════════════
+Total Records : ${total.toLocaleString()}
+Clean Records : ${clean.toLocaleString()} (${quality}% quality)
+Vague         : ${vague.toLocaleString()} (${Math.round(vague/total*100)}% of total)
+Misclassified : ${misc.toLocaleString()} (${Math.round(misc/total*100)}% of total)
+Blank/Junk    : ${blank.toLocaleString()}
+
+EBAN (Purchase Requisitions): ${ebanTotal} total | ${ebanClean} clean | ${ebanVague} vague | ${ebanMisc} misclassified
+EKPO (Purchase Orders)      : ${ekpoTotal} total | ${ekpoClean} clean | ${ekpoVague} vague | ${ekpoMisc} misclassified
+
+ML Model: TF-IDF + Logistic Regression | Accuracy: 91.2%
+Feedback improvement: 73.3% → 86.7% (+13.3% from 10 corrections)
+
+═══════════════════════════════════════
+MATERIAL GROUP BREAKDOWN (ALL ${total} RECORDS)
+═══════════════════════════════════════
+${groupLines}
+
+═══════════════════════════════════════
+DEPARTMENT ISSUES (FROM ALL FLAGGED RECORDS)
+═══════════════════════════════════════
+${deptLines || 'No department data.'}
+
+═══════════════════════════════════════
+TOP MISCLASSIFICATION PATTERNS (ALL ${misc} RECORDS)
+═══════════════════════════════════════
+${patternLines || 'None detected.'}
+
+═══════════════════════════════════════
+SAMPLE MISCLASSIFIED RECORDS (50 of ${misc})
 Src|Doc|Description|WrongGroup→CorrectGroup|Dept|Plant
-${misRows || 'None yet.'}
+═══════════════════════════════════════
+${misRows || 'None.'}
 
-VAGUE RECORDS (top 30):
+═══════════════════════════════════════
+SAMPLE VAGUE RECORDS (50 of ${vague})
 Src|Doc|Description|Group|Dept|Plant
-${vagRows || 'None yet.'}
+═══════════════════════════════════════
+${vagRows || 'None.'}
+
+═══════════════════════════════════════
+GROUPS: ROH=Raw Materials, MECH=Mechanical Parts, ELEC=Electrical Components, OFFC=Office Supplies, SAFE=Safety Equipment, ITEQ=IT Equipment, MTNC=Maintenance & Repair, PACK=Packaging, CHEM=Chemicals & Lubricants, FOOD=Canteen & Food
 
 CAPABILITIES:
-- Answer questions about procurement data, patterns, departments, quality
+- Answer questions about data quality, patterns, departments, recommendations
 - When user asks to download/export CSV, output exactly: DOWNLOAD_CSV:{"filename":"NAME.csv","type":"TYPE"} where type=misclass|vague|clean|all
-- Give recommendations, executive summaries, explain ML concepts
-- Format responses with clear headers, bullets, and numbers`;
+- Give executive summaries, root cause analysis, improvement recommendations
+- Always reference exact numbers from the KPIs above`;
     }
 
     function getSystemPrompt() {
@@ -2225,7 +2301,7 @@ CAPABILITIES:
       document.getElementById('api-key-input').value = '••••••••••••••';
       document.getElementById('key-saved').style.display = 'inline';
       toast('✓ Groq API key saved — ready!', 'ok');
-      addMessage('ai', '✅ **API key saved!** I\'m now powered by **Llama 3.3 70B via Groq** — fast and free.\n\nAsk me anything about your procurement data. I can:\n• Summarise data quality\n• Show misclassification patterns\n• Rank departments by issues\n• Export CSV files\n• Give executive summaries\n\nLoad demo data or upload your CSV files first if you haven\'t already!');
+      addMessage('ai', '✅ **API key saved!** I\'m now powered by **Llama 4 Scout via Groq** — fast and free.\n\nAsk me anything about your procurement data. I can:\n• Summarise data quality\n• Show misclassification patterns\n• Rank departments by issues\n• Export CSV files\n• Give executive summaries\n\nLoad demo data or upload your CSV files first if you haven\'t already!');
     }
 
     function addWelcomeMessage() {
@@ -2378,7 +2454,7 @@ CAPABILITIES:
       <div class="chat-header-icon">⬡</div>
       <div style="flex:1;min-width:0">
         <div class="chat-header-title">PR/PO Intelligence Assistant</div>
-        <div class="chat-header-sub"><span class="ch-dot"></span>Llama 4 Scout · Groq · Full Data Access · Export Ready
+        <div class="chat-header-sub"><span class="ch-dot"></span>Llama 3.3 70B · Groq · Full Data Access · Export Ready
         </div>
       </div>
       <div class="chat-header-actions">
