@@ -2000,13 +2000,17 @@
         const txt = r.TXZ01 || r.Description || r.description || '';
         const grp = r.MATGR || r.Predicted || r.predicted || '';
         const c = classifyRow(txt, grp);
-        return { ...r, TXZ01: txt, MATGR: grp, AFNAM: r.AFNAM || r.DEPARTMENT || r.department || '—', WERKS: r.WERKS || r.PLANT || r.plant || '—', BANFN: r.BANFN || r.PR_NUMBER || r.pr_number || '—', src: 'EBAN', issue: c.issue, correct: c.correct };
+        let dept = r.AFNAM || r.DEPARTMENT || r.department || '—';
+        if (dept === '—' || dept === '-') dept = 'External Vendor';
+        return { ...r, TXZ01: txt, MATGR: grp, AFNAM: dept, WERKS: r.WERKS || r.PLANT || r.plant || '—', BANFN: r.BANFN || r.PR_NUMBER || r.pr_number || '—', src: 'EBAN', issue: c.issue, correct: c.correct };
       });
       const ekpo = (ekpoData || []).map(r => {
         const txt = r.TXZ01 || r.Description || r.description || '';
         const grp = r.MATGR || r.Predicted || r.predicted || '';
         const c = classifyRow(txt, grp);
-        return { ...r, TXZ01: txt, MATGR: grp, LIFNR: r.LIFNR || r.VENDOR || r.vendor || '—', WERKS: r.WERKS || r.PLANT || r.plant || '—', EBELN: r.EBELN || r.PO_NUMBER || r.po_number || '—', src: 'EKPO', issue: c.issue, correct: c.correct };
+        let vendor = r.LIFNR || r.VENDOR || r.vendor || r.DEPARTMENT || r.department || '—';
+        if (vendor === '—' || vendor === '-') vendor = 'External Vendor';
+        return { ...r, TXZ01: txt, MATGR: grp, LIFNR: vendor, WERKS: r.WERKS || r.PLANT || r.plant || '—', EBELN: r.EBELN || r.PO_NUMBER || r.po_number || '—', src: 'EKPO', issue: c.issue, correct: c.correct };
       });
       const all = [...eban, ...ekpo];
       allAnalyzed = all;
@@ -2169,7 +2173,8 @@
       // Build dept stats from ALL records (not sliced)
       const deptStats = {};
       all.filter(r => r.issue === 'misclass' || r.issue === 'vague').forEach(r => {
-        const d = r.AFNAM || r.LIFNR || 'Unknown';
+        let d = r.AFNAM || r.LIFNR || 'Unknown';
+        if (d === '—' || d === '-') d = 'External Vendor';
         if (!deptStats[d]) deptStats[d] = { misc: 0, vague: 0, total: 0 };
         if (r.issue === 'misclass') deptStats[d].misc++; else deptStats[d].vague++;
         deptStats[d].total++;
@@ -2232,8 +2237,8 @@ LIVE KPIs (EXACT — DO NOT DEVIATE)
 ═══════════════════════════════════════
 Total Records : ${total.toLocaleString()}
 Clean Records : ${clean.toLocaleString()} (${quality}% quality)
-Vague         : ${vague.toLocaleString()} (${Math.round(vague/total*100)}% of total)
-Misclassified : ${misc.toLocaleString()} (${Math.round(misc/total*100)}% of total)
+Vague         : ${vague.toLocaleString()} (${Math.round(vague / total * 100)}% of total)
+Misclassified : ${misc.toLocaleString()} (${Math.round(misc / total * 100)}% of total)
 Blank/Junk    : ${blank.toLocaleString()}
 
 EBAN (Purchase Requisitions): ${ebanTotal} total | ${ebanClean} clean | ${ebanVague} vague | ${ebanMisc} misclassified
@@ -2287,7 +2292,7 @@ CAPABILITIES:
     function toggleChat() {
       chatOpen = !chatOpen;
       document.getElementById('chat-window').classList.toggle('open', chatOpen);
-      document.getElementById('chat-fab').style.display = chatOpen ? 'none' : 'flex';
+      document.getElementById('chat-fab').innerHTML = chatOpen ? '✕' : '💬';
       document.getElementById('chat-overlay').classList.toggle('show', chatOpen);
       const pulse = document.getElementById('chat-fab-pulse');
       if (pulse) pulse.style.display = chatOpen ? 'none' : 'block';
@@ -2296,21 +2301,21 @@ CAPABILITIES:
     function closeChat() { if (chatOpen) toggleChat(); }
     function clearChat() { chatHistory = []; document.getElementById('chat-messages').innerHTML = ''; addWelcomeMessage(); toast('Chat cleared', ''); }
     function saveApiKey() {
-  const val = document.getElementById('api-key-input').value.trim();
-  if (!val) { toast('Paste your Groq API key first (gsk_...)', 'warn'); return; }
-  if (!val.startsWith('gsk_')) { toast('Groq keys start with gsk_ — check your key', 'warn'); return; }
-  apiKey = val;
-  document.getElementById('api-key-input').value = '••••••••••••••';
-  document.getElementById('key-saved').style.display = 'inline';
-  toast('✓ Groq API key saved — ready!', 'ok');
-  addMessage('ai', '✅ **API key saved!** Ready to go.\n\nUpload your EBAN and EKPO CSV files, click **Analyse Data**, then ask me anything about your procurement data.');
-}
+      const val = document.getElementById('api-key-input').value.trim();
+      if (!val) { toast('Paste your Groq API key first (gsk_...)', 'warn'); return; }
+      if (!val.startsWith('gsk_')) { toast('Groq keys start with gsk_ — check your key', 'warn'); return; }
+      apiKey = val;
+      document.getElementById('api-key-input').value = '••••••••••••••';
+      document.getElementById('key-saved').style.display = 'inline';
+      toast('✓ Groq API key saved — ready!', 'ok');
+      addMessage('ai', '✅ **API key saved!** Ready to go.\n\nUpload your EBAN and EKPO CSV files, click **Analyse Data**, then ask me anything about your procurement data.');
+    }
 
-   function addWelcomeMessage() {
-  const msgs = document.getElementById('chat-messages');
-  const div = document.createElement('div');
-  div.className = 'chat-msg';
-  div.innerHTML = `<div class="chat-avatar ai">⬡</div>
+    function addWelcomeMessage() {
+      const msgs = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = 'chat-msg';
+      div.innerHTML = `<div class="chat-avatar ai">⬡</div>
 <div class="chat-bubble ai">
   👋 Hi! I'm your <strong>PR/PO Intelligence Assistant</strong>.<br><br>
   <strong>To get started:</strong><br>
@@ -2319,8 +2324,8 @@ CAPABILITIES:
   3. Come back here and ask me anything!
   <div class="model-badge">⬡ Llama 3.3 70B · Groq · Server-Side</div>
 </div>`;
-  msgs.appendChild(div);
-}
+      msgs.appendChild(div);
+    }
     function renderMarkdown(text) {
       const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       return safe
@@ -2463,7 +2468,8 @@ CAPABILITIES:
       </div>
     </div>
 
-    <div style="padding:6px 14px;background:var(--bg);border-bottom:1px solid var(--border);font-size:10px;color:var(--green);font-family:var(--mono);text-align:center;">
+    <div
+      style="padding:6px 14px;background:var(--bg);border-bottom:1px solid var(--border);font-size:10px;color:var(--green);font-family:var(--mono);text-align:center;">
       ✓ Powered by Llama 3.3 70B · Server-Side · No API Key Needed
     </div>
 
