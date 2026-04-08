@@ -2287,7 +2287,7 @@ CAPABILITIES:
     function toggleChat() {
       chatOpen = !chatOpen;
       document.getElementById('chat-window').classList.toggle('open', chatOpen);
-      document.getElementById('chat-fab').innerHTML = chatOpen ? '✕' : '💬';
+      document.getElementById('chat-fab').style.display = chatOpen ? 'none' : 'flex';
       document.getElementById('chat-overlay').classList.toggle('show', chatOpen);
       const pulse = document.getElementById('chat-fab-pulse');
       if (pulse) pulse.style.display = chatOpen ? 'none' : 'block';
