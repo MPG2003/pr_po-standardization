@@ -2050,7 +2050,7 @@
       // Update chat context after analysis
       updateChatContext(total, clean, vague, misc, blank, quality, eban, ekpo, all);
       toast(`✓ Analysis complete — ${total.toLocaleString()} records processed`, 'ok');
-      addMessage('ai', '✅ **Analysis complete!** I now have full access to your data.\n\nI can help you with:\n• Data quality summary\n• Misclassification patterns\n• Department breakdown\n• Export CSV files\n• Executive summary for your manager\n\nWhat would you like to know?');
+      addMessage('ai', '✅ **Analysis complete!** I now have full access to your data.\n\nI can help you with:\n• Data quality summary\n• Misclassification patterns\n• Department breakdown\n• Export CSV files\n• Executive summary \n\nWhat would you like to know?');
     }
 
     // ── CHARTS ───────────────────────────────────────────────────────────
@@ -2489,7 +2489,7 @@ CAPABILITIES:
         </div>
         <div class="chat-quick-btn" onclick="quickAsk('What are the top misclassification patterns?')">⚠ Misclass
           patterns</div>
-        <div class="chat-quick-btn" onclick="quickAsk('Give me an executive summary to present to my manager.')">📋
+        <div class="chat-quick-btn" onclick="quickAsk('Give me an executive summary to present  .')">📋
           Executive summary</div>
         <div class="chat-quick-btn"
           onclick="quickAsk('What improvements do you recommend to fix data quality issues?')">💡 Recommendations</div>
